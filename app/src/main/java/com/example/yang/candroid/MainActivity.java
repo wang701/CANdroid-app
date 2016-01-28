@@ -31,12 +31,53 @@ public class MainActivity extends Activity {
 	private Message mMsg;
 	private MsgLoggerTask mMsgLoggerTask;
 	private ArrayAdapter<String> mLog;
+	private boolean mToggleState;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
     }
+	
+	@Override
+	protected void onSaveInstanceState(Bundle savedInstanceState) {
+		ToggleButton tB = (ToggleButton) findViewById(R.id.toggleButton);
+
+		if (savedInstanceState != null) {
+			savedInstanceState.putBoolean("tb_state", tB.isChecked());
+			savedInstanceState.putInt("log_size", mLog.getCount());
+			int i;
+			String[] saveLog = new String[mLog.getCount()];
+			for (i = 0; i < mLog.getCount(); i++) {
+				saveLog[i] = mLog.getItem(i);
+				System.out.printf("\n%s", saveLog[i]);
+			}
+			savedInstanceState.putStringArray("log_data", saveLog);
+			System.out.println("\nsave to string array");
+		}
+		super.onSaveInstanceState(savedInstanceState);
+	}
+	
+	@Override
+	protected void onRestoreInstanceState(Bundle savedInstanceState) {
+  		super.onRestoreInstanceState(savedInstanceState);
+		int resLogSize = savedInstanceState.getInt("log_size");
+		System.out.printf("\nlog size = %d", resLogSize);
+		String[] resLog = new String[resLogSize];
+		resLog = savedInstanceState.getStringArray("log_data");
+		System.out.printf("\n%s", resLog[1]);
+	 	int i;
+		mLog = new ArrayAdapter<String>(this, R.layout.message);
+		for (i = 0; i < resLogSize; i++) {
+			mLog.add(resLog[i]);
+		}
+		ListView lV = (ListView) findViewById(R.id.mylist);
+		lV.setAdapter(mLog);
+    
+		ToggleButton tB = (ToggleButton) findViewById(R.id.toggleButton);
+		mToggleState = savedInstanceState.getBoolean("tb_state");
+		tB.setChecked(mToggleState);
+  	}
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
