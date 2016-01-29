@@ -50,22 +50,23 @@ public class MainActivity extends Activity {
 			String[] saveLog = new String[mLog.getCount()];
 			for (i = 0; i < mLog.getCount(); i++) {
 				saveLog[i] = mLog.getItem(i);
-				System.out.printf("\n%s", saveLog[i]);
 			}
 			savedInstanceState.putStringArray("log_data", saveLog);
-			System.out.println("\nsave to string array");
+        	if (mMsgLoggerTask != null && mMsgLoggerTask.getStatus() != AsyncTask.Status.FINISHED) {
+            	mMsgLoggerTask.cancel(true);
+        	}
 		}
+
 		super.onSaveInstanceState(savedInstanceState);
 	}
 	
 	@Override
 	protected void onRestoreInstanceState(Bundle savedInstanceState) {
   		super.onRestoreInstanceState(savedInstanceState);
+		
 		int resLogSize = savedInstanceState.getInt("log_size");
-		System.out.printf("\nlog size = %d", resLogSize);
 		String[] resLog = new String[resLogSize];
 		resLog = savedInstanceState.getStringArray("log_data");
-		System.out.printf("\n%s", resLog[1]);
 	 	int i;
 		mLog = new ArrayAdapter<String>(this, R.layout.message);
 		for (i = 0; i < resLogSize; i++) {
@@ -113,8 +114,10 @@ public class MainActivity extends Activity {
 			mMsgLoggerTask = new MsgLoggerTask();
 			mMsgLoggerTask.execute(mSocket);
         } else {
-			mMsgLoggerTask.cancel(true);
-			mMsgLoggerTask = null;
+			if (mMsgLoggerTask != null) {
+				mMsgLoggerTask.cancel(true);
+				mMsgLoggerTask = null;
+			}
         	mSocket.close();
 		}
     }
