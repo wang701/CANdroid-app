@@ -11,6 +11,10 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.ToggleButton;
 import android.util.Log;
+import android.app.Service;
+import android.os.IBinder;
+import android.content.Intent;
+import android.content.Context;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -32,6 +36,7 @@ public class MainActivity extends Activity {
 	private MsgLoggerTask mMsgLoggerTask;
 	private ArrayAdapter<String> mLog;
 	private boolean mToggleState;
+	private Intent mIt;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,7 +50,7 @@ public class MainActivity extends Activity {
 
 		if (savedInstanceState != null) {
 			savedInstanceState.putBoolean("tb_state", tB.isChecked());
-			savedInstanceState.putInt("log_size", mLog.getCount());
+		/*	savedInstanceState.putInt("log_size", mLog.getCount());
 			int i;
 			String[] saveLog = new String[mLog.getCount()];
 			for (i = 0; i < mLog.getCount(); i++) {
@@ -55,6 +60,7 @@ public class MainActivity extends Activity {
         	if (mMsgLoggerTask != null && mMsgLoggerTask.getStatus() != AsyncTask.Status.FINISHED) {
             	mMsgLoggerTask.cancel(true);
         	}
+		*/
 		}
 
 		super.onSaveInstanceState(savedInstanceState);
@@ -64,7 +70,7 @@ public class MainActivity extends Activity {
 	protected void onRestoreInstanceState(Bundle savedInstanceState) {
   		super.onRestoreInstanceState(savedInstanceState);
 		
-		int resLogSize = savedInstanceState.getInt("log_size");
+	/*	int resLogSize = savedInstanceState.getInt("log_size");
 		String[] resLog = new String[resLogSize];
 		resLog = savedInstanceState.getStringArray("log_data");
 	 	int i;
@@ -74,7 +80,7 @@ public class MainActivity extends Activity {
 		}
 		ListView lV = (ListView) findViewById(R.id.mylist);
 		lV.setAdapter(mLog);
-    
+    */
 		ToggleButton tB = (ToggleButton) findViewById(R.id.toggleButton);
 		mToggleState = savedInstanceState.getBoolean("tb_state");
 		tB.setChecked(mToggleState);
@@ -104,6 +110,9 @@ public class MainActivity extends Activity {
         ToggleButton toggleButton = (ToggleButton) view;
 
         if(toggleButton.isChecked()){
+			mIt = new Intent(this, CandroidLog.class);
+			startService(mIt);
+
 			mSocket = new CanSocketJ1939("can0");
 			mSocket.setPromisc();
 			mSocket.setTimestamp();
@@ -119,6 +128,7 @@ public class MainActivity extends Activity {
 				mMsgLoggerTask = null;
 			}
         	mSocket.close();
+			stopService(mIt);
 		}
     }
 
