@@ -24,4 +24,5 @@ android {
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
     compile 'org.apache.directory.studio:org.apache.commons.io:2.4'
+	compile 'de.greenrobot:eventbus:2.4.0'
 }

@@ -24,6 +24,7 @@ import java.io.InputStreamReader;
 import java.io.FileOutputStream;
 
 import org.apache.commons.io.input.TeeInputStream;
+import de.greenrobot.event.EventBus;
 import static android.os.Environment.getExternalStorageDirectory;
 
 import org.isoblue.can.CanSocket;
@@ -31,9 +32,7 @@ import org.isoblue.can.CanSocketJ1939;
 import org.isoblue.can.CanSocketJ1939.Message;
 
 public class MainActivity extends Activity {
-	private CanSocketJ1939 mSocket;
-	private Message mMsg;
-	private MsgLoggerTask mMsgLoggerTask;
+	// private MsgLoggerTask mMsgLoggerTask;
 	private ArrayAdapter<String> mLog;
 	private boolean mToggleState;
 	private Intent mIt;
@@ -110,28 +109,27 @@ public class MainActivity extends Activity {
         ToggleButton toggleButton = (ToggleButton) view;
 
         if(toggleButton.isChecked()){
+			mLog = new ArrayAdapter<String>(this, R.layout.message);
+			ListView msgList = (ListView) findViewById(R.id.mylist);
+			msgList.setAdapter(mLog);
+
 			mIt = new Intent(this, CandroidLog.class);
 			startService(mIt);
 
-			mSocket = new CanSocketJ1939("can0");
-			mSocket.setPromisc();
-			mSocket.setTimestamp();
-
-			mLog = new ArrayAdapter<String>(this, R.layout.message);
-			ListView listView = (ListView) findViewById(R.id.mylist);
-			listView.setAdapter(mLog);
-			mMsgLoggerTask = new MsgLoggerTask();
+		/*	mMsgLoggerTask = new MsgLoggerTask();
 			mMsgLoggerTask.execute(mSocket);
+		*/
         } else {
-			if (mMsgLoggerTask != null) {
+		/*  if (mMsgLoggerTask != null) {
 				mMsgLoggerTask.cancel(true);
 				mMsgLoggerTask = null;
 			}
-        	mSocket.close();
+		*/
 			stopService(mIt);
 		}
     }
 
+	/*
 	private class MsgLoggerTask extends AsyncTask<CanSocketJ1939, Message, Void> {
         @Override
         protected Void doInBackground(CanSocketJ1939... socket) {
@@ -161,5 +159,6 @@ public class MainActivity extends Activity {
         protected void onPostExecute(Void Result) {
             // Do nothing
         }
-	}	
+	}
+	*/
 }
