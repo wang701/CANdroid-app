@@ -20,7 +20,7 @@ public class CandroidLog extends Service {
 	private CanSocketJ1939 mSocket;
 	private EventBus bus = EventBus.getDefault();
 	private Handler msgHandler;
-	private Thread mThread;
+	private recvThread mThread;
 	public J1939MsgEvent event = null;
 	boolean mAllowRebind;
 
@@ -55,7 +55,7 @@ public class CandroidLog extends Service {
 		
 		msgHandler = new Handler() {
 			@Override
-			public void handleMessage(android.os.Message msg) {
+			public void handleMessage(Message msg) {
 				super.handleMessage(msg);
 				Toast.makeText(CandroidLog.this,
 					"10 secs passed, no J1939 msg", Toast.LENGTH_SHORT).show();
@@ -63,24 +63,10 @@ public class CandroidLog extends Service {
 		};
 
 		openJ1939Socket();
+		
+		mThread = new recvThread();
+		mThread.start();
 
-		mThread = new Thread(new Runnable() {
-			public void run() {
-				while(true) {
-					try {
-						if (mSocket.select(10) == 0) {
-							event = new J1939MsgEvent(mSocket.recvMsg());
-							bus.post(event);
-						} else {
-                        	msgHandler.sendEmptyMessage(0);
-						} 
-                    } catch (IOException | InterruptedException e) {
-						e.printStackTrace();
-						return;
-                    }
-				}
-			}
-        }).start();
 		return START_STICKY;
 	}
 	
@@ -104,11 +90,9 @@ public class CandroidLog extends Service {
    	/* Called when The service is no longer used and is being destroyed */
    	@Override
    	public void onDestroy() {
-		super.onDestroy();
-		if (mThread != null) {
-			mThread.interrupt();
-		}
+		mThread.stop();	
 		closeJ1939Socket();
+		super.onDestroy();
 		Toast.makeText(this, "Logging stopped", Toast.LENGTH_LONG).show();
    	}
 
@@ -116,21 +100,30 @@ public class CandroidLog extends Service {
 		Thread recvThread;
 		
 		public void start() {
-			if(recvThread == null ) {
+			if (recvThread == null) {
           		recvThread = new Thread(this);
           		recvThread.start();
        		}
     	}
 
 		public void stop() {
-       		if(recvThread != null) {
+       		if (recvThread != null) {
           		recvThread.interrupt();
       		}
     	}
 			
 		public void run() {
-			try {
-			}
+			while (!recvThread.interrupted()) {
+				try {
+					if (mSocket.select(10) == 0) {
+						event = new J1939MsgEvent(mSocket.recvMsg());
+						bus.post(event);
+					} else {
+						msgHandler.sendEmptyMessage(0);	
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
 		}
 	}

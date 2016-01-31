@@ -123,8 +123,8 @@ public class MainActivity extends Activity {
 		}
     }
 
-	public void onEvent(J1939MsgEvent event){
-		Toast.makeText(this, "event triggered", Toast.LENGTH_LONG).show();
+	public void onEventMainThread(J1939MsgEvent event){
+		mLog.add(event.toString());
 	}
 
 	@Override

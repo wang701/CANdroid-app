@@ -30,7 +30,20 @@ public class J1939MsgEvent {
 		this.timestamp = msg.timestamp;		
 	}
 
-	public J1939MsgEvent(String errMsg) {
-		this.errMsg = errMsg;
+	private static String byteArrayToHex(byte[] a) {
+		StringBuilder sb = new StringBuilder(a.length * 2);
+		for(byte b: a)
+			sb.append(String.format("%02x", b & 0xff));
+		return sb.toString();
+    }
+	
+	public String toString() {
+		String msgStr = String.format("%d %s %d %d %d %d %d %d %d %s",
+				timestamp, ifName, name,
+				addr, dstName, dstAddr,
+				pgn, len, priority,
+				byteArrayToHex(data));
+        
+		return msgStr;
 	}
 }
