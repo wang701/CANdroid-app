@@ -15,6 +15,7 @@ import android.app.Service;
 import android.os.IBinder;
 import android.content.Intent;
 import android.content.Context;
+import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -29,18 +30,19 @@ import static android.os.Environment.getExternalStorageDirectory;
 
 import org.isoblue.can.CanSocket;
 import org.isoblue.can.CanSocketJ1939;
-import org.isoblue.can.CanSocketJ1939.Message;
+import org.isoblue.can.CanSocketJ1939.J1939Message;
 
 public class MainActivity extends Activity {
-	// private MsgLoggerTask mMsgLoggerTask;
 	private ArrayAdapter<String> mLog;
 	private boolean mToggleState;
 	private Intent mIt;
-
-    @Override
+	private EventBus bus = EventBus.getDefault();
+    
+	@Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+		bus.register(this);
     }
 	
 	@Override
@@ -116,49 +118,18 @@ public class MainActivity extends Activity {
 			mIt = new Intent(this, CandroidLog.class);
 			startService(mIt);
 
-		/*	mMsgLoggerTask = new MsgLoggerTask();
-			mMsgLoggerTask.execute(mSocket);
-		*/
         } else {
-		/*  if (mMsgLoggerTask != null) {
-				mMsgLoggerTask.cancel(true);
-				mMsgLoggerTask = null;
-			}
-		*/
 			stopService(mIt);
 		}
     }
 
-	/*
-	private class MsgLoggerTask extends AsyncTask<CanSocketJ1939, Message, Void> {
-        @Override
-        protected Void doInBackground(CanSocketJ1939... socket) {
-            try {
-                while (true) {
-					if (socket[0].select(10) == 0) {
-						mMsg = socket[0].recvMsg();
-                    	publishProgress(mMsg);
-					} else {
-						System.out.println("\nthere is no data");
-					} 
-					if(isCancelled()){
-                   		break;
-                    }
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            return null;
-        }
-
-        protected void onProgressUpdate(Message... msg) {
-			mLog.add(msg[0].toString()); 
-        }
-
-        protected void onPostExecute(Void Result) {
-            // Do nothing
-        }
+	public void onEvent(J1939MsgEvent event){
+		Toast.makeText(this, "event triggered", Toast.LENGTH_LONG).show();
 	}
-	*/
+
+	@Override
+	protected void onDestroy() {
+		bus.unregister(this);
+		super.onDestroy();
+	}
 }
