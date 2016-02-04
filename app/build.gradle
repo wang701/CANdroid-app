@@ -16,13 +16,22 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    sourceSets {
+        main.java.srcDirs += 'src/main/java'
+    }
 	lintOptions {
 		abortOnError false
 	}
 }
 
+task appStart(type: Exec, dependsOn: 'installDebug') {
+	commandLine 'adb', 'shell', 'am', 'start', '-n',
+	'com.example.yang.candroid/com.example.yang.candroid.MainActivity',
+	'-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.LAUNCHE'
+}
+
 dependencies {
-    compile fileTree(include: ['*.jar'], dir: 'libs')
+    compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'org.apache.directory.studio:org.apache.commons.io:2.4'
-	compile 'de.greenrobot:eventbus:2.4.0'
+    compile 'de.greenrobot:eventbus:2.4.0'
 }
