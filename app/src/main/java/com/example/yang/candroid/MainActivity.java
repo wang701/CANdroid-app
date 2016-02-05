@@ -20,13 +20,17 @@ public class MainActivity extends Activity {
 	private ArrayAdapter<String> mLog;
 	private boolean mToggleState;
 	private Intent mIt;
-	private EventBus bus = EventBus.getDefault();
+	private EventBus mBus;
+	private ListView mMsgList;
 
 	@Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-		bus.register(this);
+		mBus = EventBus.getDefault();
+		mBus.register(this);
+		mLog = new ArrayAdapter<String>(this, R.layout.message);
+		mMsgList = (ListView) findViewById(R.id.mylist);
     }
 
 	@Override
@@ -54,6 +58,7 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onRestoreInstanceState(Bundle savedInstanceState) {
 		super.onRestoreInstanceState(savedInstanceState);
+		mMsgList.setAdapter(mLog);
 
 	/*	int resLogSize = savedInstanceState.getInt("log_size");
 		String[] resLog = new String[resLogSize];
@@ -95,9 +100,7 @@ public class MainActivity extends Activity {
         ToggleButton toggleButton = (ToggleButton) view;
 
         if(toggleButton.isChecked()){
-			mLog = new ArrayAdapter<String>(this, R.layout.message);
-			ListView msgList = (ListView) findViewById(R.id.mylist);
-			msgList.setAdapter(mLog);
+			mMsgList.setAdapter(mLog);
 
 			mIt = new Intent(this, CandroidLog.class);
 			startService(mIt);
@@ -113,7 +116,7 @@ public class MainActivity extends Activity {
 
 	@Override
 	protected void onDestroy() {
-		bus.unregister(this);
+		mBus.unregister(this);
 		super.onDestroy();
 	}
 }
