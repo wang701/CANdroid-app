@@ -12,12 +12,12 @@ import android.content.Intent;
 
 import java.io.IOException;
 
-import org.apache.commons.io.input.TeeInputStream;
+import org.apache.commons.collections4.queue.CircularFifoQueue;
 import de.greenrobot.event.EventBus;
 import static android.os.Environment.getExternalStorageDirectory;
 
 public class MainActivity extends Activity {
-	private ArrayAdapter<String> mLog;
+	private MsgAdapter mLog;
 	private boolean mToggleState;
 	private Intent mIt;
 	private EventBus mBus;
@@ -29,7 +29,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 		mBus = EventBus.getDefault();
 		mBus.register(this);
-		mLog = new ArrayAdapter<String>(this, R.layout.message);
+		mLog = new MsgAdapter(this, 5);
 		mMsgList = (ListView) findViewById(R.id.mylist);
     }
 
@@ -104,7 +104,6 @@ public class MainActivity extends Activity {
 
 			mIt = new Intent(this, CandroidLog.class);
 			startService(mIt);
-
         } else {
 			stopService(mIt);
 		}
