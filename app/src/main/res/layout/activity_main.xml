@@ -13,7 +13,6 @@
         android:layout_height="324dp"
         android:id="@+id/toggleButton"
         android:checked="false"
-        android:layout_centerHorizontal="true"
         android:layout_alignParentTop="true"
         android:layout_marginTop="40dp"
         android:textOff="@string/toggle_start"

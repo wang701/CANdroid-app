@@ -87,10 +87,20 @@ public class MainActivity extends Activity {
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         switch (id) {
-            case R.id.action_delete_log:
+            /*case R.id.action_delete_log:
+                File dir = new File(Environment.getExternalStorageDirectory() + "/Log/");
+                if (dir.isDirectory())
+                {
+                    String[] children = dir.list();
+                    for (int i = 0; i < children.length; i++)
+                    {
+                        new File(dir, children[i]).delete();
+                    }
+                }
                 return true;
             case R.id.action_email_log:
                 return true;
+			*/
             default:
                 return super.onOptionsItemSelected(item);
         }
