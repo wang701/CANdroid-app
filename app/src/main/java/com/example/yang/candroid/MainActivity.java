@@ -1,42 +1,80 @@
 package com.example.yang.candroid;
 
 import android.app.Activity;
-import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.ToggleButton;
-import android.util.Log;
+import android.content.Intent;
 
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.FileOutputStream;
 
-import org.apache.commons.io.input.TeeInputStream;
+import org.apache.commons.collections4.queue.CircularFifoQueue;
+import de.greenrobot.event.EventBus;
 import static android.os.Environment.getExternalStorageDirectory;
 
-import org.isoblue.can.CanSocket;
-import org.isoblue.can.CanSocketJ1939;
-import org.isoblue.can.CanSocketJ1939.Message;
-
 public class MainActivity extends Activity {
-	private CanSocketJ1939 mSocket;
-	private Message mMsg;
-	private MsgLoggerTask mMsgLoggerTask;
-	private ArrayAdapter<String> mLog;
+	private MsgAdapter mLog;
+	private boolean mToggleState;
+	private Intent mIt;
+	private EventBus mBus;
+	private ListView mMsgList;
 
-    @Override
+	@Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+		mBus = EventBus.getDefault();
+		mBus.register(this);
+		mLog = new MsgAdapter(this, 5);
+		mMsgList = (ListView) findViewById(R.id.mylist);
     }
+
+	@Override
+	protected void onSaveInstanceState(Bundle savedInstanceState) {
+		ToggleButton tB = (ToggleButton) findViewById(R.id.toggleButton);
+
+		if (savedInstanceState != null) {
+			savedInstanceState.putBoolean("tb_state", tB.isChecked());
+		/*	savedInstanceState.putInt("log_size", mLog.getCount());
+			int i;
+			String[] saveLog = new String[mLog.getCount()];
+			for (i = 0; i < mLog.getCount(); i++) {
+				saveLog[i] = mLog.getItem(i);
+			}
+			savedInstanceState.putStringArray("log_data", saveLog);
+			if (mMsgLoggerTask != null && mMsgLoggerTask.getStatus() != AsyncTask.Status.FINISHED) {
+				mMsgLoggerTask.cancel(true);
+			}
+		*/
+		}
+
+		super.onSaveInstanceState(savedInstanceState);
+	}
+
+	@Override
+	protected void onRestoreInstanceState(Bundle savedInstanceState) {
+		super.onRestoreInstanceState(savedInstanceState);
+		mMsgList.setAdapter(mLog);
+
+	/*	int resLogSize = savedInstanceState.getInt("log_size");
+		String[] resLog = new String[resLogSize];
+		resLog = savedInstanceState.getStringArray("log_data");
+		int i;
+		mLog = new ArrayAdapter<String>(this, R.layout.message);
+		for (i = 0; i < resLogSize; i++) {
+			mLog.add(resLog[i]);
+		}
+		ListView lV = (ListView) findViewById(R.id.mylist);
+		lV.setAdapter(mLog);
+    */
+		ToggleButton tB = (ToggleButton) findViewById(R.id.toggleButton);
+		mToggleState = savedInstanceState.getBoolean("tb_state");
+		tB.setChecked(mToggleState);
+	}
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -62,50 +100,22 @@ public class MainActivity extends Activity {
         ToggleButton toggleButton = (ToggleButton) view;
 
         if(toggleButton.isChecked()){
-			mSocket = new CanSocketJ1939("can0");
-			mSocket.setPromisc();
-			mSocket.setTimestamp();
+			mMsgList.setAdapter(mLog);
 
-			mLog = new ArrayAdapter<String>(this, R.layout.message);
-			ListView listView = (ListView) findViewById(R.id.mylist);
-			listView.setAdapter(mLog);
-			mMsgLoggerTask = new MsgLoggerTask();
-			mMsgLoggerTask.execute(mSocket);
+			mIt = new Intent(this, CandroidLog.class);
+			startService(mIt);
         } else {
-			mMsgLoggerTask.cancel(true);
-			mMsgLoggerTask = null;
-        	mSocket.close();
+			stopService(mIt);
 		}
     }
 
-	private class MsgLoggerTask extends AsyncTask<CanSocketJ1939, Message, Void> {
-        @Override
-        protected Void doInBackground(CanSocketJ1939... socket) {
-            try {
-                while (true) {
-					if (socket[0].select(10) == 0) {
-						mMsg = socket[0].recvMsg();
-                    	publishProgress(mMsg);
-					} else {
-						System.out.println("\nthere is no data");
-					} 
-					if(isCancelled()){
-                   		break;
-                    }
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+	public void onEventMainThread(J1939MsgEvent event){
+		mLog.add(event.toString());
+	}
 
-            return null;
-        }
-
-        protected void onProgressUpdate(Message... msg) {
-			mLog.add(msg[0].toString()); 
-        }
-
-        protected void onPostExecute(Void Result) {
-            // Do nothing
-        }
-	}	
+	@Override
+	protected void onDestroy() {
+		mBus.unregister(this);
+		super.onDestroy();
+	}
 }
