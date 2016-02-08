@@ -30,7 +30,8 @@ public class CandroidLog extends Service {
 			mSocket.setPromisc();
 			mSocket.setTimestamp();
 		} catch (final IOException e) {
-			Toast.makeText(this, "socket creation failed", Toast.LENGTH_LONG).show();
+			Toast.makeText(this, "socket creation failed",
+							Toast.LENGTH_LONG).show();
 		}
 	}
 
@@ -38,7 +39,8 @@ public class CandroidLog extends Service {
 		try {
 			mSocket.close();
 		} catch (final IOException e) {
-			Toast.makeText(this, "socket closure failed", Toast.LENGTH_LONG).show();
+			Toast.makeText(this, "socket closure failed",
+							Toast.LENGTH_LONG).show();
 		}
 	}
 

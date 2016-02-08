@@ -1,22 +1,35 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools" tools:context=".MainActivity">
-    <item android:id="@+id/add_filters"
+    <item
+		android:id="@+id/add_filters"
         android:title="@string/add_filters"
         android:icon="@drawable/ic_menu_add"
         android:orderInCategory="100"
-        android:showAsAction="ifRoom" />
+        android:showAsAction="ifRoom"
+	/>
 
-    <item android:id="@+id/view_old_logs"
+    <item
+		android:id="@+id/view_old_logs"
         android:title="@string/view_old_logs"
         android:icon="@drawable/ic_menu_archive"
         android:orderInCategory="100"
-        android:showAsAction="ifRoom" />
+        android:showAsAction="ifRoom"
+	/>
 
-    <item android:id="@+id/delete_logs"
-        android:title="@string/delete_logs"
-        android:icon="@drawable/ic_menu_delete"
-        android:orderInCategory="100"
-        android:showAsAction="ifRoom" />
+	<item
+		android:id="@+id/save_to_sd"
+		android:title="Save to SD"
+		android:checkable="true"
+		android:orderInCategory="100"
+		android:showAsAction="never"
+	/>
 
+	<item
+		android:id="@+id/upload_to_cloud"
+		android:title="Sync to Cloud"
+		android:checkable="true"
+		android:orderInCategory="100"
+		android:showAsAction="never"
+	/>
 </menu>

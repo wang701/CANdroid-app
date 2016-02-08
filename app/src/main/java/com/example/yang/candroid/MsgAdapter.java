@@ -25,6 +25,14 @@ public class MsgAdapter extends BaseAdapter {
 		notifyDataSetChanged();
 	}
 
+	public void addArray(String[] msg) {
+		int i;
+		for (i = 0; i < msg.length; i++) {
+			msgQueue.add(msg[i]);
+		}
+		notifyDataSetChanged();
+	}
+
 	@Override
 	public int getCount() {
 		return msgQueue.size();
@@ -33,6 +41,15 @@ public class MsgAdapter extends BaseAdapter {
 	@Override
 	public String getItem(int position) {
 		return msgQueue.get(position);
+	}
+
+	public String[] getValues() {
+		int i;
+		String[] MsgArray = new String[getCount()];
+		for (i = 0; i < getCount(); i++) {
+			MsgArray[i] = getItem(i);
+		}
+		return MsgArray;
 	}
 
 	@Override

@@ -11,13 +11,18 @@ import android.widget.ToggleButton;
 import android.content.Intent;
 
 import java.io.IOException;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.net.URISyntaxException;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import de.greenrobot.event.EventBus;
-import static android.os.Environment.getExternalStorageDirectory;
 
 public class MainActivity extends Activity {
 	private MsgAdapter mLog;
+	private FileOutputStream mFos;
+	private OutputStreamWriter mOsw;
 	private boolean mToggleState;
 	private Intent mIt;
 	private EventBus mBus;
@@ -29,7 +34,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 		mBus = EventBus.getDefault();
 		mBus.register(this);
-		mLog = new MsgAdapter(this, 5);
+		mLog = new MsgAdapter(this, 30);
 		mMsgList = (ListView) findViewById(R.id.mylist);
     }
 
@@ -39,17 +44,9 @@ public class MainActivity extends Activity {
 
 		if (savedInstanceState != null) {
 			savedInstanceState.putBoolean("tb_state", tB.isChecked());
-		/*	savedInstanceState.putInt("log_size", mLog.getCount());
-			int i;
-			String[] saveLog = new String[mLog.getCount()];
-			for (i = 0; i < mLog.getCount(); i++) {
-				saveLog[i] = mLog.getItem(i);
-			}
-			savedInstanceState.putStringArray("log_data", saveLog);
-			if (mMsgLoggerTask != null && mMsgLoggerTask.getStatus() != AsyncTask.Status.FINISHED) {
-				mMsgLoggerTask.cancel(true);
-			}
-		*/
+			String[] prevMsgs = mLog.getValues();
+			savedInstanceState.putStringArray("lv_msgs", prevMsgs);
+			savedInstanceState.putString("intent_str", mIt.toUri(0));
 		}
 
 		super.onSaveInstanceState(savedInstanceState);
@@ -57,23 +54,22 @@ public class MainActivity extends Activity {
 
 	@Override
 	protected void onRestoreInstanceState(Bundle savedInstanceState) {
-		super.onRestoreInstanceState(savedInstanceState);
+		String[] prevMsgs = savedInstanceState.getStringArray("lv_msgs");
+		mLog.addArray(prevMsgs);
 		mMsgList.setAdapter(mLog);
 
-	/*	int resLogSize = savedInstanceState.getInt("log_size");
-		String[] resLog = new String[resLogSize];
-		resLog = savedInstanceState.getStringArray("log_data");
-		int i;
-		mLog = new ArrayAdapter<String>(this, R.layout.message);
-		for (i = 0; i < resLogSize; i++) {
-			mLog.add(resLog[i]);
-		}
-		ListView lV = (ListView) findViewById(R.id.mylist);
-		lV.setAdapter(mLog);
-    */
 		ToggleButton tB = (ToggleButton) findViewById(R.id.toggleButton);
 		mToggleState = savedInstanceState.getBoolean("tb_state");
 		tB.setChecked(mToggleState);
+
+		String uri = savedInstanceState.getString("intent_str");
+		try {
+			mIt = Intent.parseUri(uri, 0);
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+
+		super.onRestoreInstanceState(savedInstanceState);
 	}
 
     @Override
@@ -107,12 +103,18 @@ public class MainActivity extends Activity {
     }
 
     public void toggleOnOff(View view) throws IOException {
+		if (mOsw != null) {
+			mOsw.close();
+		}
+		if (mFos != null) {
+			mFos.close();
+		}
         ToggleButton toggleButton = (ToggleButton) view;
 
         if(toggleButton.isChecked()){
 			mMsgList.setAdapter(mLog);
-
 			mIt = new Intent(this, CandroidLog.class);
+			createFile();
 			startService(mIt);
         } else {
 			stopService(mIt);
@@ -121,6 +123,24 @@ public class MainActivity extends Activity {
 
 	public void onEventMainThread(J1939MsgEvent event){
 		mLog.add(event.toString());
+		try {
+			mOsw.append(event.toString() + "\n");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void createFile() {
+		long unixtime = System.currentTimeMillis() / 1000L;
+		String timestamp = Long.toString(unixtime);
+		String filename = timestamp + ".log";
+		try {
+			mFos = new FileOutputStream("/sdcard/Log/" + filename);
+			mOsw = new OutputStreamWriter(mFos);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return;
+		}
 	}
 
 	@Override
