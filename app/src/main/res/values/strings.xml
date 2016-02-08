@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Candroid</string>
 
-    <string name="delete_logs">Delete Logs</string>
+    <string name="app_settings">Settings</string>
     <string name="view_old_logs">View Old Logs</string>
     <string name="add_filters">Add Filters</string>
     <string name="toggle_start">START</string>

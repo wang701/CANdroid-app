@@ -11,14 +11,18 @@ import android.widget.ToggleButton;
 import android.content.Intent;
 
 import java.io.IOException;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
 import java.net.URISyntaxException;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import de.greenrobot.event.EventBus;
-import static android.os.Environment.getExternalStorageDirectory;
 
 public class MainActivity extends Activity {
 	private MsgAdapter mLog;
+	private FileOutputStream mFos;
+	private OutputStreamWriter mOsw;
 	private boolean mToggleState;
 	private Intent mIt;
 	private EventBus mBus;
@@ -99,11 +103,18 @@ public class MainActivity extends Activity {
     }
 
     public void toggleOnOff(View view) throws IOException {
+		if (mOsw != null) {
+			mOsw.close();
+		}
+		if (mFos != null) {
+			mFos.close();
+		}
         ToggleButton toggleButton = (ToggleButton) view;
 
         if(toggleButton.isChecked()){
 			mMsgList.setAdapter(mLog);
 			mIt = new Intent(this, CandroidLog.class);
+			createFile();
 			startService(mIt);
         } else {
 			stopService(mIt);
@@ -112,6 +123,24 @@ public class MainActivity extends Activity {
 
 	public void onEventMainThread(J1939MsgEvent event){
 		mLog.add(event.toString());
+		try {
+			mOsw.append(event.toString() + "\n");
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void createFile() {
+		long unixtime = System.currentTimeMillis() / 1000L;
+		String timestamp = Long.toString(unixtime);
+		String filename = timestamp + ".log";
+		try {
+			mFos = new FileOutputStream("/sdcard/Log/" + filename);
+			mOsw = new OutputStreamWriter(mFos);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return;
+		}
 	}
 
 	@Override
