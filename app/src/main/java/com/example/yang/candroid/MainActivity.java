@@ -11,6 +11,7 @@ import android.widget.ToggleButton;
 import android.content.Intent;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 import de.greenrobot.event.EventBus;
@@ -29,7 +30,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 		mBus = EventBus.getDefault();
 		mBus.register(this);
-		mLog = new MsgAdapter(this, 5);
+		mLog = new MsgAdapter(this, 30);
 		mMsgList = (ListView) findViewById(R.id.mylist);
     }
 
@@ -39,17 +40,9 @@ public class MainActivity extends Activity {
 
 		if (savedInstanceState != null) {
 			savedInstanceState.putBoolean("tb_state", tB.isChecked());
-		/*	savedInstanceState.putInt("log_size", mLog.getCount());
-			int i;
-			String[] saveLog = new String[mLog.getCount()];
-			for (i = 0; i < mLog.getCount(); i++) {
-				saveLog[i] = mLog.getItem(i);
-			}
-			savedInstanceState.putStringArray("log_data", saveLog);
-			if (mMsgLoggerTask != null && mMsgLoggerTask.getStatus() != AsyncTask.Status.FINISHED) {
-				mMsgLoggerTask.cancel(true);
-			}
-		*/
+			String[] prevMsgs = mLog.getValues();
+			savedInstanceState.putStringArray("lv_msgs", prevMsgs);
+			savedInstanceState.putString("intent_str", mIt.toUri(0));
 		}
 
 		super.onSaveInstanceState(savedInstanceState);
@@ -57,23 +50,22 @@ public class MainActivity extends Activity {
 
 	@Override
 	protected void onRestoreInstanceState(Bundle savedInstanceState) {
-		super.onRestoreInstanceState(savedInstanceState);
+		String[] prevMsgs = savedInstanceState.getStringArray("lv_msgs");
+		mLog.addArray(prevMsgs);
 		mMsgList.setAdapter(mLog);
 
-	/*	int resLogSize = savedInstanceState.getInt("log_size");
-		String[] resLog = new String[resLogSize];
-		resLog = savedInstanceState.getStringArray("log_data");
-		int i;
-		mLog = new ArrayAdapter<String>(this, R.layout.message);
-		for (i = 0; i < resLogSize; i++) {
-			mLog.add(resLog[i]);
-		}
-		ListView lV = (ListView) findViewById(R.id.mylist);
-		lV.setAdapter(mLog);
-    */
 		ToggleButton tB = (ToggleButton) findViewById(R.id.toggleButton);
 		mToggleState = savedInstanceState.getBoolean("tb_state");
 		tB.setChecked(mToggleState);
+
+		String uri = savedInstanceState.getString("intent_str");
+		try {
+			mIt = Intent.parseUri(uri, 0);
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+
+		super.onRestoreInstanceState(savedInstanceState);
 	}
 
     @Override
@@ -111,7 +103,6 @@ public class MainActivity extends Activity {
 
         if(toggleButton.isChecked()){
 			mMsgList.setAdapter(mLog);
-
 			mIt = new Intent(this, CandroidLog.class);
 			startService(mIt);
         } else {
