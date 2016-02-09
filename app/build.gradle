@@ -1,8 +1,32 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'com.neenbedankt.gradle.plugins:android-apt:1.8'
+    }
+}
+
 apply plugin: 'com.android.application'
+apply plugin: 'com.neenbedankt.android-apt'
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+	compile 'org.apache.commons:commons-collections4:4.1'
+    compile 'org.apache.directory.studio:org.apache.commons.io:2.4'
+    compile 'org.greenrobot:eventbus:3.0.0'
+	apt 'org.greenrobot:eventbus-annotation-processor:3.0.0'
+}
 
 android {
     compileSdkVersion 21
-    buildToolsVersion '22.0.1'
+    buildToolsVersion '23.0.2'
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_7
+        targetCompatibility = JavaVersion.VERSION_1_7
+    }
     defaultConfig {
         applicationId "com.example.yang.candroid"
         minSdkVersion 22
@@ -28,15 +52,14 @@ android {
 	}
 }
 
+apt {
+    arguments {
+        eventBusIndex "com.example.yang.candroid.MyEventBusIndex"
+    }
+}
+
 task appStart(type: Exec, dependsOn: 'installDebug') {
 	commandLine 'adb', 'shell', 'am', 'start', '-n',
 	'com.example.yang.candroid/com.example.yang.candroid.MainActivity',
 	'-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.LAUNCHE'
-}
-
-dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-	compile 'org.apache.commons:commons-collections4:4.1'
-    compile 'org.apache.directory.studio:org.apache.commons.io:2.4'
-    compile 'de.greenrobot:eventbus:2.4.0'
 }

@@ -1,7 +1,5 @@
 package com.example.yang.candroid;
 
-import java.io.IOException;
-
 import android.app.Service;
 import android.os.IBinder;
 import android.os.Handler;
@@ -9,20 +7,32 @@ import android.os.Message;
 import android.content.Intent;
 import android.widget.Toast;
 
-import de.greenrobot.event.EventBus;
+import java.io.IOException;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 
 import org.isoblue.can.CanSocket;
 import org.isoblue.can.CanSocketJ1939;
 import org.isoblue.can.CanSocketJ1939.J1939Message;
 
-public class CandroidLog extends Service {
+//TODO:make it a foreground service
 
+public class CandroidLog extends Service {
 	private CanSocketJ1939 mSocket;
 	private EventBus bus = EventBus.getDefault();
+	private EventBus mFileBus = EventBus.getDefault();
+	private FileOutputStream mFos;
+	private OutputStreamWriter mOsw;
 	private Handler msgHandler;
 	private recvThread mThread;
 	public J1939MsgEvent event = null;
-	boolean mAllowRebind;
+	private boolean mAllowRebind;
+	private boolean mWriteToFile = false;
 
 	public void openJ1939Socket() {
 		try {
@@ -47,7 +57,7 @@ public class CandroidLog extends Service {
 	/* Called when service is created */
 	@Override
 	public void onCreate() {
-
+		mFileBus.register(this);
 	}
 
 	/* Called after startService() */
@@ -89,13 +99,34 @@ public class CandroidLog extends Service {
 
 	}
 
+	/* Called when the service heard FileOutEvent */
+	@Subscribe(threadMode = ThreadMode.BACKGROUND)
+	public void onEvent(FileOutEvent event) {
+		mWriteToFile = event.WriteToFile;
+		System.out.println("event received");
+	}
+
 	/* Called when The service is no longer used and is being destroyed */
 	@Override
 	public void onDestroy() {
 		mThread.stop();
 		closeJ1939Socket();
+		mFileBus.unregister(this);
 		super.onDestroy();
 		Toast.makeText(this, "Logging stopped", Toast.LENGTH_LONG).show();
+	}
+
+	private void createFile() {
+		long unixtime = System.currentTimeMillis() / 1000L;
+		String timestamp = Long.toString(unixtime);
+		String filename = timestamp + ".log";
+		try {
+			mFos = new FileOutputStream("/sdcard/Log/" + filename);
+			mOsw = new OutputStreamWriter(mFos);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return;
+		}
 	}
 
 	public class recvThread implements Runnable {
@@ -112,6 +143,16 @@ public class CandroidLog extends Service {
 			if (recvThread != null) {
 				recvThread.interrupt();
 			}
+			try {
+				if (mOsw != null) {
+					mOsw.close();
+				}
+				if (mFos != null) {
+					mFos.close();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 
 		public void run() {
@@ -120,6 +161,14 @@ public class CandroidLog extends Service {
 					if (mSocket.select(10) == 0) {
 						event = new J1939MsgEvent(mSocket.recvMsg());
 						bus.post(event);
+						if (mOsw == null) {
+							createFile();
+						}
+						try {
+							mOsw.append(event.toString() + "\n");
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
 					} else {
 						msgHandler.sendEmptyMessage(0);
 					}
