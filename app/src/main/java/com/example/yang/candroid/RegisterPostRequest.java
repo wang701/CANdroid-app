@@ -2,24 +2,18 @@ package com.example.yang.candroid;
 
 import android.util.Log;
 
-import com.android.volley.AuthFailureError;
 import com.android.volley.NetworkResponse;
-import com.android.volley.Request;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.VolleyLog;
-import com.android.volley.toolbox.HttpHeaderParser;
-import com.android.volley.toolbox.JsonRequest;
+import com.android.volley.toolbox.JsonObjectRequest;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.UnsupportedEncodingException;
-import java.util.HashMap;
-import java.util.Map;
+public class RegisterPostRequest extends JsonObjectRequest {
 
-public class RegisterPostRequest extends JsonRequest<Void> {
-
+	private static final String TAG = "RegisterPostRequest";
 	private static final String softwareVersion = BuildConfig.VERSION_NAME;
 	private static final String softwareStatement =
 		"eyJqa3UiOiJodHRwczovL2lkZW50aXR5Lm9hZGEtZGV2LmNvbS9jZXJ0cyIsImtpZCI6" +
@@ -37,34 +31,33 @@ public class RegisterPostRequest extends JsonRequest<Void> {
 		"6Mjm6vLjvUuE21isneFFCPmROhNr2HaowHRpFx0_xwA34iLTsV_8fx9-AZEdFtMRAs1y" +
 		"ZNjVmiIL4LoUbxkitq_s3_1vHB9NNhR77FKixsUD4KZqiFp0K1T5KlAsUksZk3cBbuxy" +
 		"IJww0-dea9aOXDPbEQyfX3Q";
-	private static final String TAG = "RegisterPostRequest";
-	protected String mClientId;
-	protected String mRedirectUri;
+	private Response.Listener<OADARegistration> mListener;
 
-	public RegisterPostRequest(String url) {
-		super(Method.POST, url, makeJson().toString(),
-			new Listener(), new ErrorListener());
+	public RegisterPostRequest(OADAConfiguration wellKnown,
+		Response.Listener<OADARegistration> listener) {
+		super(Method.POST, wellKnown.mRegistrationEndpoint,
+			makeJson().toString(),
+			null, new ErrorListener());
+			mListener = listener;
 	}
 
 	@Override
-	protected Response<Void> parseNetworkResponse(
+	protected Response<JSONObject> parseNetworkResponse(
 		NetworkResponse response) {
-		Log.i(TAG, response.toString());
-        try {
-            String jsonString = new String(response.data,
-				HttpHeaderParser.parseCharset(response.headers,
-						PROTOCOL_CHARSET));
-			Log.i(TAG, jsonString);
-			JSONObject jsonObject = new JSONObject(jsonString);
-			mClientId = jsonObject.getString("client_id");
-			JSONObject uris = jsonObject.getJSONObject("redirect_uris");
-			mRedirectUri = uris.names().get(0).toString();
-        } catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
-        } catch (JSONException je) {
-			je.printStackTrace();
-        }
-		return null;
+
+		Response<JSONObject> JSONResponse =
+			super.parseNetworkResponse(response);
+
+		if (JSONResponse.isSuccess() && mListener != null) {
+			try {
+				mListener.onResponse(
+					new OADARegistration(JSONResponse.result));
+			} catch (JSONException e) {
+				JSONResponse.error(new VolleyError(e));
+			}
+		}
+
+		return JSONResponse;
 	}
 
 	private static JSONObject makeJson() {
@@ -83,13 +76,6 @@ public class RegisterPostRequest extends JsonRequest<Void> {
 		@Override
 		public void onErrorResponse(VolleyError error) {
 			VolleyLog.d("Error: " + error.getMessage());
-		}
-	}
-
-	private static class Listener implements Response.Listener<Void> {
-		@Override
-		public void onResponse(Void v) {
-
 		}
 	}
 }

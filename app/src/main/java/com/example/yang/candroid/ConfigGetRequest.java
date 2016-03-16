@@ -14,8 +14,12 @@ public class ConfigGetRequest extends JsonObjectRequest {
 	private static final String TAG = "ConfigGetRequest";
 	private Response.Listener<OADAConfiguration> mListener;
 
-	public ConfigGetRequest(String domain, Response.Listener<OADAConfiguration> listener) {
-		super(Method.GET, "https://" + domain + "/.well-known/oada-configuration", null, new ErrorListener());
+	public ConfigGetRequest(String domain,
+		Response.Listener<OADAConfiguration> listener) {
+		super(Method.GET, "https://"
+			+ domain
+			+ ":3000/.well-known/oada-configuration", null,
+			new ErrorListener());
 		mListener = listener;
 	}
 
@@ -23,11 +27,13 @@ public class ConfigGetRequest extends JsonObjectRequest {
 	protected Response<JSONObject> parseNetworkResponse(
 		NetworkResponse response) {
 
-		Response<JSONObject> JSONResponse = super.parseNetworkResponse(response);
+		Response<JSONObject> JSONResponse =
+			super.parseNetworkResponse(response);
 
 		if (JSONResponse.isSuccess() && mListener != null) {
 			try {
-				mListener.onResponse(new OADAConfiguration(JSONResponse.result));
+				mListener.onResponse(
+					new OADAConfiguration(JSONResponse.result));
 			} catch (JSONException e) {
 				JSONResponse.error(new VolleyError(e));
 			}

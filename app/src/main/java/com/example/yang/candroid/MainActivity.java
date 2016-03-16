@@ -24,9 +24,6 @@ import android.widget.ToggleButton;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.toolbox.Volley;
-import com.google.android.gms.appindexing.Action;
-import com.google.android.gms.appindexing.AppIndex;
-import com.google.android.gms.common.api.GoogleApiClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,6 +31,7 @@ import java.util.ArrayList;
 import org.isoblue.can.CanSocketJ1939;
 import org.isoblue.can.CanSocketJ1939.J1939Message;
 import org.isoblue.can.CanSocketJ1939.Filter;
+import org.json.JSONObject;
 
 public class MainActivity extends Activity {
 	private CanSocketJ1939 mSocket;
@@ -60,12 +58,6 @@ public class MainActivity extends Activity {
 	private static final String msgStop = "Stop logging and Candroid Service?";
 	private static final String msgLogOpt = "Change log options will stop " +
 			"current logging, do you wish to continue?";
-	/**
-	 * ATTENTION: This was auto-generated to implement the App Indexing API.
-	 * See https://g.co/AppIndexing/AndroidStudio for more information.
-	 */
-	private GoogleApiClient client;
-	//private final String token = "E620jPvYjmu_8h3jI2vhPiGSgXIEM43kZImNB7_p";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -73,9 +65,6 @@ public class MainActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 		initCandroid();
-		// ATTENTION: This was auto-generated to implement the App Indexing API.
-		// See https://g.co/AppIndexing/AndroidStudio for more information.
-		client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
 	}
 
 	@Override
@@ -130,22 +119,6 @@ public class MainActivity extends Activity {
 			onStreamGo();
 		}
 		super.onStart();
-		// ATTENTION: This was auto-generated to implement the App Indexing API.
-		// See https://g.co/AppIndexing/AndroidStudio for more information.
-		client.connect();
-		// ATTENTION: This was auto-generated to implement the App Indexing API.
-		// See https://g.co/AppIndexing/AndroidStudio for more information.
-		Action viewAction = Action.newAction(
-				Action.TYPE_VIEW, // TODO: choose an action type.
-				"Main Page", // TODO: Define a title for the content shown.
-				// TODO: If you have web page content that matches this app activity's content,
-				// make sure this auto-generated web page URL is correct.
-				// Otherwise, set the URL to null.
-				Uri.parse("http://host/path"),
-				// TODO: Make sure this auto-generated app deep link URI is correct.
-				Uri.parse("android-app://com.example.yang.candroid/http/host/path")
-		);
-		AppIndex.AppIndexApi.start(client, viewAction);
 	}
 
 	@Override
@@ -157,22 +130,6 @@ public class MainActivity extends Activity {
 			Log.d(TAG, "socket closed, task stopped");
 		}
 		super.onStop();
-		// ATTENTION: This was auto-generated to implement the App Indexing API.
-		// See https://g.co/AppIndexing/AndroidStudio for more information.
-		Action viewAction = Action.newAction(
-				Action.TYPE_VIEW, // TODO: choose an action type.
-				"Main Page", // TODO: Define a title for the content shown.
-				// TODO: If you have web page content that matches this app activity's content,
-				// make sure this auto-generated web page URL is correct.
-				// Otherwise, set the URL to null.
-				Uri.parse("http://host/path"),
-				// TODO: Make sure this auto-generated app deep link URI is correct.
-				Uri.parse("android-app://com.example.yang.candroid/http/host/path")
-		);
-		AppIndex.AppIndexApi.end(client, viewAction);
-		// ATTENTION: This was auto-generated to implement the App Indexing API.
-		// See https://g.co/AppIndexing/AndroidStudio for more information.
-		client.disconnect();
 	}
 
 	@Override
@@ -279,10 +236,18 @@ public class MainActivity extends Activity {
 		mFilterDialog = new FilterDialogFragment();
 		mWarningDialog = new WarningDialogFragment();
 		mQueue = Volley.newRequestQueue(getApplicationContext());
-		mConfigReq = new ConfigGetRequest(new Response.Listener<ConfigGetRequest.OADAConfiguration>() {
+		mConfigReq = new ConfigGetRequest("vip4.ecn.purdue.edu",
+			new Response.Listener<OADAConfiguration>() {
 			@Override
-			public void onResponse(ConfigGetRequest.OADAConfiguration wellKnown) {
-				RegisterPostRequest(wellKnown);
+			public void onResponse(OADAConfiguration wellKnown) {
+				mRegisterReq = new RegisterPostRequest(wellKnown,
+					new Response.Listener<OADARegistration>() {
+					@Override
+					public void onResponse(OADARegistration response) {
+						Log.i(TAG, response.mClientId);
+						Log.i(TAG, response.mRedirectUris);
+					}
+				});
 			}
 		});
 	}
@@ -305,7 +270,6 @@ public class MainActivity extends Activity {
 	/* callback for starting the logger */
 	public void onStreamGo() {
 		mQueue.add(mConfigReq);
-		mQueue.addRequestFinishedListener();
 		setupCanSocket();
 		startTask();
 		Log.d(TAG, "isServiceRunning: " +
