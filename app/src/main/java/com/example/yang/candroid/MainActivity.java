@@ -22,7 +22,11 @@ import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import com.android.volley.RequestQueue;
+import com.android.volley.Response;
 import com.android.volley.toolbox.Volley;
+import com.google.android.gms.appindexing.Action;
+import com.google.android.gms.appindexing.AppIndex;
+import com.google.android.gms.common.api.GoogleApiClient;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -52,18 +56,26 @@ public class MainActivity extends Activity {
 	private static final String CAN_INTERFACE = "can0";
 	private static final String TAG = "CandroidActivity";
 	private static final String msgFilter = "Adding new filter(s) will stop " +
-		"current logging, do you wish to continue?";
+			"current logging, do you wish to continue?";
 	private static final String msgStop = "Stop logging and Candroid Service?";
 	private static final String msgLogOpt = "Change log options will stop " +
-		"current logging, do you wish to continue?";
+			"current logging, do you wish to continue?";
+	/**
+	 * ATTENTION: This was auto-generated to implement the App Indexing API.
+	 * See https://g.co/AppIndexing/AndroidStudio for more information.
+	 */
+	private GoogleApiClient client;
 	//private final String token = "E620jPvYjmu_8h3jI2vhPiGSgXIEM43kZImNB7_p";
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
 		Log.d(TAG, "in onCreate()");
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_main);
 		initCandroid();
+		// ATTENTION: This was auto-generated to implement the App Indexing API.
+		// See https://g.co/AppIndexing/AndroidStudio for more information.
+		client = new GoogleApiClient.Builder(this).addApi(AppIndex.API).build();
 	}
 
 	@Override
@@ -118,6 +130,22 @@ public class MainActivity extends Activity {
 			onStreamGo();
 		}
 		super.onStart();
+		// ATTENTION: This was auto-generated to implement the App Indexing API.
+		// See https://g.co/AppIndexing/AndroidStudio for more information.
+		client.connect();
+		// ATTENTION: This was auto-generated to implement the App Indexing API.
+		// See https://g.co/AppIndexing/AndroidStudio for more information.
+		Action viewAction = Action.newAction(
+				Action.TYPE_VIEW, // TODO: choose an action type.
+				"Main Page", // TODO: Define a title for the content shown.
+				// TODO: If you have web page content that matches this app activity's content,
+				// make sure this auto-generated web page URL is correct.
+				// Otherwise, set the URL to null.
+				Uri.parse("http://host/path"),
+				// TODO: Make sure this auto-generated app deep link URI is correct.
+				Uri.parse("android-app://com.example.yang.candroid/http/host/path")
+		);
+		AppIndex.AppIndexApi.start(client, viewAction);
 	}
 
 	@Override
@@ -129,6 +157,22 @@ public class MainActivity extends Activity {
 			Log.d(TAG, "socket closed, task stopped");
 		}
 		super.onStop();
+		// ATTENTION: This was auto-generated to implement the App Indexing API.
+		// See https://g.co/AppIndexing/AndroidStudio for more information.
+		Action viewAction = Action.newAction(
+				Action.TYPE_VIEW, // TODO: choose an action type.
+				"Main Page", // TODO: Define a title for the content shown.
+				// TODO: If you have web page content that matches this app activity's content,
+				// make sure this auto-generated web page URL is correct.
+				// Otherwise, set the URL to null.
+				Uri.parse("http://host/path"),
+				// TODO: Make sure this auto-generated app deep link URI is correct.
+				Uri.parse("android-app://com.example.yang.candroid/http/host/path")
+		);
+		AppIndex.AppIndexApi.end(client, viewAction);
+		// ATTENTION: This was auto-generated to implement the App Indexing API.
+		// See https://g.co/AppIndexing/AndroidStudio for more information.
+		client.disconnect();
 	}
 
 	@Override
@@ -138,17 +182,17 @@ public class MainActivity extends Activity {
 		return true;
 	}
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
+		return true;
+	}
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        switch (id) {
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		int id = item.getItemId();
+		switch (id) {
 			case R.id.add_filters:
 				if (isServiceRunning(CandroidService.class)) {
 					mWarningDialog.mWarningMsg = msgFilter;
@@ -172,7 +216,7 @@ public class MainActivity extends Activity {
 				return true;
 			case R.id.view_old_logs:
 				Uri selectedUri = Uri.parse(Environment
-					.getExternalStorageDirectory() + "/Log/");
+						.getExternalStorageDirectory() + "/Log/");
 				Intent intent = new Intent(Intent.ACTION_VIEW);
 				intent.setDataAndType(selectedUri, "resource/folder");
 				if (intent.resolveActivityInfo(getPackageManager(), 0) != null) {
@@ -182,9 +226,9 @@ public class MainActivity extends Activity {
 							Toast.LENGTH_LONG).show();
 				}
 			default:
-                return super.onOptionsItemSelected(item);
-        }
-    }
+				return super.onOptionsItemSelected(item);
+		}
+	}
 
 	/* callback for streamToggle */
 	public void toggleListener(View view) throws IOException {
@@ -193,7 +237,7 @@ public class MainActivity extends Activity {
 			onStreamGo();
 		} else {
 			mIsCandroidServiceRunning =
-				isServiceRunning(CandroidService.class);
+					isServiceRunning(CandroidService.class);
 			if (mIsCandroidServiceRunning) {
 				mWarningDialog.mWarningMsg = msgStop;
 				mWarningDialog.show(mFm, "warning");
@@ -214,7 +258,7 @@ public class MainActivity extends Activity {
 		mSaveFiltered = b.getBoolean("saveOption");
 		mFilters = (ArrayList<Filter>) b.getSerializable("filters");
 		ArrayList<String> filterStrList = new ArrayList<String>();
-		for (Filter f: mFilters) {
+		for (Filter f : mFilters) {
 			filterStrList.add("Filtering on " + f.toString());
 		}
 		String[] filterStr = new String[filterStrList.size()];
@@ -235,9 +279,12 @@ public class MainActivity extends Activity {
 		mFilterDialog = new FilterDialogFragment();
 		mWarningDialog = new WarningDialogFragment();
 		mQueue = Volley.newRequestQueue(getApplicationContext());
-		mConfigReq = new ConfigGetRequest();
-		mRegisterReq = new RegisterPostRequest(mConfigReq
-			.mRegistrationEndpoint);
+		mConfigReq = new ConfigGetRequest(new Response.Listener<ConfigGetRequest.OADAConfiguration>() {
+			@Override
+			public void onResponse(ConfigGetRequest.OADAConfiguration wellKnown) {
+				RegisterPostRequest(wellKnown);
+			}
+		});
 	}
 
 	/* callback for adding new filters */
@@ -258,7 +305,7 @@ public class MainActivity extends Activity {
 	/* callback for starting the logger */
 	public void onStreamGo() {
 		mQueue.add(mConfigReq);
-		mQueue.add(mRegisterReq);
+		mQueue.addRequestFinishedListener();
 		setupCanSocket();
 		startTask();
 		Log.d(TAG, "isServiceRunning: " +
@@ -268,9 +315,9 @@ public class MainActivity extends Activity {
 
 	private boolean isServiceRunning(Class<?> serviceClass) {
 		ActivityManager manager = (ActivityManager)
-		getSystemService(Context.ACTIVITY_SERVICE);
+				getSystemService(Context.ACTIVITY_SERVICE);
 		for (RunningServiceInfo service :
-			manager.getRunningServices(Integer.MAX_VALUE)) {
+				manager.getRunningServices(Integer.MAX_VALUE)) {
 			if (serviceClass.getName().equals(service.service.getClassName())) {
 				return true;
 			}
@@ -332,38 +379,38 @@ public class MainActivity extends Activity {
 	}
 
 	private class MsgLoggerTask extends AsyncTask
-		<CanSocketJ1939, J1939Message, Void> {
-        @Override
-        protected Void doInBackground(CanSocketJ1939... socket) {
-            try {
-                while (!isCancelled()) {
+			<CanSocketJ1939, J1939Message, Void> {
+		@Override
+		protected Void doInBackground(CanSocketJ1939... socket) {
+			try {
+				while (!isCancelled()) {
 					if (socket[0] != null) {
 						if (socket[0].select(1) == 0) {
 							mMsg = socket[0].recvMsg();
 							publishProgress(mMsg);
 						}
-						if(isCancelled()){
+						if (isCancelled()) {
 							break;
 						}
 					}
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
 
-            return null;
-        }
+			return null;
+		}
 
-        protected void onProgressUpdate(J1939Message... msg) {
+		protected void onProgressUpdate(J1939Message... msg) {
 			mLog.add(msg[0].toString());
 /*			mQueue.add(new MessagePostRequest(token,
 			"http://128.46.213.95:3000/bookmarks/candroid",
 			msg[0].toString()));
 */
-        }
+		}
 
-        protected void onPostExecute(Void Result) {
-            // Do nothing
-        }
+		protected void onPostExecute(Void Result) {
+			// Do nothing
+		}
 	}
 }
