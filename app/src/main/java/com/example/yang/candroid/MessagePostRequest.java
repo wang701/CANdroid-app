@@ -10,7 +10,6 @@ import com.android.volley.VolleyError;
 import com.android.volley.VolleyLog;
 import com.android.volley.toolbox.JsonRequest;
 
-
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -18,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class MessagePostRequest extends JsonRequest<Void> {
+
 	private String mAccessToken;
 
 	public MessagePostRequest(String accessToken, String url,

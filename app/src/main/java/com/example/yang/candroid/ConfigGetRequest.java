@@ -28,15 +28,20 @@ public class ConfigGetRequest extends JsonObjectRequest {
 	}
 
 	@Override
-	protected Response<JSONObject> parseNetworkResponse(NetworkResponse response) {
+	protected Response<JSONObject> parseNetworkResponse(
+		NetworkResponse response) {
+
 		Log.i(TAG, response.toString());
         try {
             String jsonString = new String(response.data,
-                    HttpHeaderParser.parseCharset(response.headers, PROTOCOL_CHARSET));
+				HttpHeaderParser.parseCharset(response.headers,
+				PROTOCOL_CHARSET));
 			Log.i(TAG, jsonString);
 			JSONObject jsonObject = new JSONObject(jsonString);
-			mAuthorizationEndpoint = jsonObject.getString("authorization_endpoint");
-			mRegistrationEndpoint = jsonObject.getString("registration_endpoint");
+			mAuthorizationEndpoint = jsonObject
+				.getString("authorization_endpoint");
+			mRegistrationEndpoint = jsonObject
+				.getString("registration_endpoint");
 			Log.i(TAG, mAuthorizationEndpoint);
 			Log.i(TAG, mRegistrationEndpoint);
             return Response.success(new JSONObject(jsonString),

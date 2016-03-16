@@ -42,6 +42,8 @@ public class MainActivity extends Activity {
 	private ListView mMsgList;
 	private ListView mFilterList;
 	private RequestQueue mQueue;
+	private ConfigGetRequest mConfigReq;
+	private RegisterPostRequest mRegisterReq;
 	private boolean mIsCandroidServiceRunning;
 	private boolean mSaveFiltered = false;
 	public static Filter mFilter;
@@ -233,6 +235,9 @@ public class MainActivity extends Activity {
 		mFilterDialog = new FilterDialogFragment();
 		mWarningDialog = new WarningDialogFragment();
 		mQueue = Volley.newRequestQueue(getApplicationContext());
+		mConfigReq = new ConfigGetRequest();
+		mRegisterReq = new RegisterPostRequest(mConfigReq
+			.mRegistrationEndpoint);
 	}
 
 	/* callback for adding new filters */
@@ -252,7 +257,8 @@ public class MainActivity extends Activity {
 
 	/* callback for starting the logger */
 	public void onStreamGo() {
-		mQueue.add(new ConfigGetRequest());
+		mQueue.add(mConfigReq);
+		mQueue.add(mRegisterReq);
 		setupCanSocket();
 		startTask();
 		Log.d(TAG, "isServiceRunning: " +
