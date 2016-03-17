@@ -48,16 +48,17 @@ public class RegisterPostRequest extends JsonObjectRequest {
 		Response<JSONObject> JSONResponse =
 			super.parseNetworkResponse(response);
 
-		if (JSONResponse.isSuccess() && mListener != null) {
-			try {
-				mListener.onResponse(
-					new OADARegistration(JSONResponse.result));
-			} catch (JSONException e) {
-				JSONResponse.error(new VolleyError(e));
-			}
-		}
-
 		return JSONResponse;
+	}
+
+	@Override
+	protected void deliverResponse(JSONObject response) {
+		try {
+			mListener.onResponse(
+                    new OADARegistration(response));
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private static JSONObject makeJson() {

@@ -246,7 +246,7 @@ public class MainActivity extends Activity {
 		mFilterList = (ListView) findViewById(R.id.filterlist);
 		mMsgList.setAdapter(mLog);
 		mFilterList.setAdapter(mFilterItems);
-		
+
 		mFilterDialog = new FilterDialogFragment();
 		mWarningDialog = new WarningDialogFragment();
 		mQueue = Volley.newRequestQueue(getApplicationContext());
@@ -262,14 +262,15 @@ public class MainActivity extends Activity {
 						Log.i(TAG, response.mClientId);
 						Log.i(TAG, response.mRedirectUri);
 						mCallbackUrl = response.mRedirectUri;
-						setContentView(mWebView);
 						startAuthorize(mAuthRequestUrl,
-							response.mClientId,
-							response.mRedirectUri);
+								response.mClientId,
+								response.mRedirectUri);
 					}
 				});
+				mQueue.add(mRegisterReq);
 			}
 		});
+		mQueue.add(mConfigReq);
 	}
 
 	/* callback for adding new filters */
@@ -289,7 +290,6 @@ public class MainActivity extends Activity {
 
 	/* callback for starting the logger */
 	public void onStreamGo() {
-		mQueue.add(mConfigReq);
 		setupCanSocket();
 		startTask();
 		Log.d(TAG, "isServiceRunning: " +
@@ -371,6 +371,7 @@ public class MainActivity extends Activity {
 			.appendQueryParameter("client_id", clientId)
 			.appendQueryParameter("state", "xyz")
 			.appendQueryParameter("redirect_uri", redirectUris)
+			.appendQueryParameter("scope", "all")
 			.build();
 
 		mAuthUrl = authUri.toString();
@@ -383,9 +384,9 @@ public class MainActivity extends Activity {
 
             @Override
             protected void onPostExecute(String url) {
-				url = mAuthUrl;	
+				url = mAuthUrl;
                 mWebView.loadUrl(url);
-            }
+			}
         }).execute();
     }
 
@@ -396,8 +397,10 @@ public class MainActivity extends Activity {
                 mWebView.stopLoading();
                 mWebView.setVisibility(View.INVISIBLE); // Hide webview if necessary
                 Uri uri = Uri.parse(url);
-				String accessToken = uri.getQueryParameter("access_token");
-				Log.i(TAG, accessToken);
+				Log.i(TAG, uri.toString());
+				Log.i(TAG, uri.getFragment()
+					.toString().split("&")[0]
+					.toString().split("=")[1].toString());
 			} else {
 				super.onPageStarted(view, url, favicon);
 			}

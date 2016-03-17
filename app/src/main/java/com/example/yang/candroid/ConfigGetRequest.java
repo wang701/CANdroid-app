@@ -30,16 +30,17 @@ public class ConfigGetRequest extends JsonObjectRequest {
 		Response<JSONObject> JSONResponse =
 			super.parseNetworkResponse(response);
 
-		if (JSONResponse.isSuccess() && mListener != null) {
-			try {
-				mListener.onResponse(
-					new OADAConfiguration(JSONResponse.result));
-			} catch (JSONException e) {
-				JSONResponse.error(new VolleyError(e));
-			}
-		}
-
 		return JSONResponse;
+	}
+
+	@Override
+	protected void deliverResponse(JSONObject response) {
+		try {
+			mListener.onResponse(
+					new OADAConfiguration(response));
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private static class ErrorListener implements Response.ErrorListener {

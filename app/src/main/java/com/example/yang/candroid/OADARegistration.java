@@ -9,7 +9,7 @@ public class OADARegistration {
 
 	public OADARegistration(JSONObject reg) throws JSONException {
 		mClientId = reg.getString("client_id");
-		mRedirectUri = reg.getJSONObject("redirect_uris")
-			.names().get(0).toString();
+		mRedirectUri = reg.getJSONArray("redirect_uris")
+			.get(0).toString();
 	}
 }
