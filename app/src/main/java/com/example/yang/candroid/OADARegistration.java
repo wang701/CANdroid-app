@@ -5,11 +5,11 @@ import org.json.JSONObject;
 
 public class OADARegistration {
 	public String mClientId;
-	public String mRedirectUris;
+	public String mRedirectUri;
 
 	public OADARegistration(JSONObject reg) throws JSONException {
 		mClientId = reg.getString("client_id");
-		mRedirectUris = reg.getJSONObject("redirect_uris")
+		mRedirectUri = reg.getJSONObject("redirect_uris")
 			.names().get(0).toString();
 	}
 }

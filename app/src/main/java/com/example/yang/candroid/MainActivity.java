@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.Context;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -16,6 +17,8 @@ import android.os.SystemClock;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.ListView;
 import android.util.Log;
 import android.widget.Toast;
@@ -31,9 +34,9 @@ import java.util.ArrayList;
 import org.isoblue.can.CanSocketJ1939;
 import org.isoblue.can.CanSocketJ1939.J1939Message;
 import org.isoblue.can.CanSocketJ1939.Filter;
-import org.json.JSONObject;
 
 public class MainActivity extends Activity {
+
 	private CanSocketJ1939 mSocket;
 	private J1939Message mMsg;
 	private MsgLoggerTask mMsgLoggerTask;
@@ -43,6 +46,7 @@ public class MainActivity extends Activity {
 	private FragmentManager mFm = getFragmentManager();
 	private ListView mMsgList;
 	private ListView mFilterList;
+	private WebView mWebView;
 	private RequestQueue mQueue;
 	private ConfigGetRequest mConfigReq;
 	private RegisterPostRequest mRegisterReq;
@@ -51,6 +55,9 @@ public class MainActivity extends Activity {
 	public static Filter mFilter;
 	public static MsgAdapter mFilterItems;
 	public static ArrayList<Filter> mFilters = new ArrayList<Filter>();
+	private static String mAuthUrl;
+	private static String mCallbackUrl;
+	private static String mAuthRequestUrl;
 	private static final String CAN_INTERFACE = "can0";
 	private static final String TAG = "CandroidActivity";
 	private static final String msgFilter = "Adding new filter(s) will stop " +
@@ -229,10 +236,17 @@ public class MainActivity extends Activity {
 		Log.d(TAG, "initializing parameters in initCandroid()");
 		mLog = new MsgAdapter(this, 100);
 		mFilterItems = new MsgAdapter(this, 20);
+		mWebView = (WebView) findViewById(R.id.grantPage);
+        mWebView.clearCache(true);
+        mWebView.getSettings().setJavaScriptEnabled(true);
+        mWebView.getSettings().setBuiltInZoomControls(true);
+        mWebView.getSettings().setDisplayZoomControls(false);
+        mWebView.setWebViewClient(mWebViewClient);
 		mMsgList = (ListView) findViewById(R.id.msglist);
 		mFilterList = (ListView) findViewById(R.id.filterlist);
 		mMsgList.setAdapter(mLog);
 		mFilterList.setAdapter(mFilterItems);
+		
 		mFilterDialog = new FilterDialogFragment();
 		mWarningDialog = new WarningDialogFragment();
 		mQueue = Volley.newRequestQueue(getApplicationContext());
@@ -240,12 +254,18 @@ public class MainActivity extends Activity {
 			new Response.Listener<OADAConfiguration>() {
 			@Override
 			public void onResponse(OADAConfiguration wellKnown) {
+				mAuthRequestUrl = wellKnown.mAuthorizationEndpoint;
 				mRegisterReq = new RegisterPostRequest(wellKnown,
 					new Response.Listener<OADARegistration>() {
 					@Override
 					public void onResponse(OADARegistration response) {
 						Log.i(TAG, response.mClientId);
-						Log.i(TAG, response.mRedirectUris);
+						Log.i(TAG, response.mRedirectUri);
+						mCallbackUrl = response.mRedirectUri;
+						setContentView(mWebView);
+						startAuthorize(mAuthRequestUrl,
+							response.mClientId,
+							response.mRedirectUri);
 					}
 				});
 			}
@@ -341,6 +361,48 @@ public class MainActivity extends Activity {
 				MainActivity.this, CandroidService.class);
 		stopService(stopForegroundIntent);
 	}
+
+	private void startAuthorize(String authorizationEndpoint,
+		String clientId, String redirectUris) {
+
+		Uri authUri = Uri.parse(authorizationEndpoint)
+			.buildUpon()
+			.appendQueryParameter("response_type", "token")
+			.appendQueryParameter("client_id", clientId)
+			.appendQueryParameter("state", "xyz")
+			.appendQueryParameter("redirect_uri", redirectUris)
+			.build();
+
+		mAuthUrl = authUri.toString();
+
+        (new AsyncTask<Void, Void, String>() {
+            @Override
+            protected String doInBackground(Void... params) {
+				return null;
+            }
+
+            @Override
+            protected void onPostExecute(String url) {
+				url = mAuthUrl;	
+                mWebView.loadUrl(url);
+            }
+        }).execute();
+    }
+
+	private WebViewClient mWebViewClient = new WebViewClient() {
+        @Override
+        public void onPageStarted(WebView view, String url, Bitmap favicon) {
+            if ((url != null) && (url.contains(mCallbackUrl))) {
+                mWebView.stopLoading();
+                mWebView.setVisibility(View.INVISIBLE); // Hide webview if necessary
+                Uri uri = Uri.parse(url);
+				String accessToken = uri.getQueryParameter("access_token");
+				Log.i(TAG, accessToken);
+			} else {
+				super.onPageStarted(view, url, favicon);
+			}
+		}
+	};
 
 	private class MsgLoggerTask extends AsyncTask
 			<CanSocketJ1939, J1939Message, Void> {
