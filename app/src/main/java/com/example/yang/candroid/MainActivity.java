@@ -50,11 +50,16 @@ public class MainActivity extends Activity {
 	private RequestQueue mQueue;
 	private ConfigGetRequest mConfigReq;
 	private RegisterPostRequest mRegisterReq;
+	private OADAAccessToken mOADAToken;
+	private OADAConfiguration mConfig;
+	private OADARegistration mReg;
 	private boolean mIsCandroidServiceRunning;
 	private boolean mSaveFiltered = false;
+
 	public static Filter mFilter;
 	public static MsgAdapter mFilterItems;
 	public static ArrayList<Filter> mFilters = new ArrayList<Filter>();
+	
 	private static String mAuthUrl;
 	private static String mCallbackUrl;
 	private static String mAuthRequestUrl;
@@ -236,12 +241,14 @@ public class MainActivity extends Activity {
 		Log.d(TAG, "initializing parameters in initCandroid()");
 		mLog = new MsgAdapter(this, 100);
 		mFilterItems = new MsgAdapter(this, 20);
+		// TODO: make a custom WebView
 		mWebView = (WebView) findViewById(R.id.grantPage);
         mWebView.clearCache(true);
         mWebView.getSettings().setJavaScriptEnabled(true);
         mWebView.getSettings().setBuiltInZoomControls(true);
         mWebView.getSettings().setDisplayZoomControls(false);
         mWebView.setWebViewClient(mWebViewClient);
+		mWebView.setVisibility(View.INVISIBLE);
 		mMsgList = (ListView) findViewById(R.id.msglist);
 		mFilterList = (ListView) findViewById(R.id.filterlist);
 		mMsgList.setAdapter(mLog);
@@ -254,17 +261,16 @@ public class MainActivity extends Activity {
 			new Response.Listener<OADAConfiguration>() {
 			@Override
 			public void onResponse(OADAConfiguration wellKnown) {
-				mAuthRequestUrl = wellKnown.mAuthorizationEndpoint;
-				mRegisterReq = new RegisterPostRequest(wellKnown,
+				mConfig = wellKnown;
+				mRegisterReq = new RegisterPostRequest(mConfig,
 					new Response.Listener<OADARegistration>() {
 					@Override
-					public void onResponse(OADARegistration response) {
-						Log.i(TAG, response.mClientId);
-						Log.i(TAG, response.mRedirectUri);
-						mCallbackUrl = response.mRedirectUri;
-						startAuthorize(mAuthRequestUrl,
-								response.mClientId,
-								response.mRedirectUri);
+					public void onResponse(OADARegistration reg) {
+						mReg = reg;
+						mWebView.setVisibility(View.VISIBLE);
+						startAuthorize(mConfig.mAuthorizationEndpoint,
+							mReg.mClientId,
+							mReg.mRedirectUris[0]);
 					}
 				});
 				mQueue.add(mRegisterReq);
@@ -369,6 +375,7 @@ public class MainActivity extends Activity {
 			.buildUpon()
 			.appendQueryParameter("response_type", "token")
 			.appendQueryParameter("client_id", clientId)
+			// TODO: randomize the state
 			.appendQueryParameter("state", "xyz")
 			.appendQueryParameter("redirect_uri", redirectUris)
 			.appendQueryParameter("scope", "all")
@@ -392,18 +399,20 @@ public class MainActivity extends Activity {
 
 	private WebViewClient mWebViewClient = new WebViewClient() {
         @Override
-        public void onPageStarted(WebView view, String url, Bitmap favicon) {
-            if ((url != null) && (url.contains(mCallbackUrl))) {
+        public boolean shouldOverrideUrlLoading(WebView view, String url) {
+            if ((url != null) && (url.contains(mReg.mRedirectUris[0]))) {
                 mWebView.stopLoading();
                 mWebView.setVisibility(View.INVISIBLE); // Hide webview if necessary
-                Uri uri = Uri.parse(url);
-				Log.i(TAG, uri.toString());
-				Log.i(TAG, uri.getFragment()
-					.toString().split("&")[0]
-					.toString().split("=")[1].toString());
-			} else {
-				super.onPageStarted(view, url, favicon);
+				mOADAToken = new OADAAccessToken(url);
+				// TODO: should throw some error for mismatched state
+				if (mOADAToken.isStateValid("xyz")) {
+					Log.i(TAG, "token is valid");
+				} else {
+					Log.e(TAG, "state mismatch, token is invalid");
+				}
+				return false;
 			}
+			return true;
 		}
 	};
 
@@ -432,10 +441,9 @@ public class MainActivity extends Activity {
 
 		protected void onProgressUpdate(J1939Message... msg) {
 			mLog.add(msg[0].toString());
-/*			mQueue.add(new MessagePostRequest(token,
-			"http://128.46.213.95:3000/bookmarks/candroid",
-			msg[0].toString()));
-*/
+			mQueue.add(new MessagePostRequest(mOADAToken.mAccessToken,
+				mConfig.mOadaBaseUri + "bookmarks/candroid",
+				msg[0].toString()));
 		}
 
 		protected void onPostExecute(Void Result) {
