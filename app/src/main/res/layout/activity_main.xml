@@ -60,10 +60,4 @@
         android:layout_below="@+id/filterlist"
         android:layout_alignEnd="@+id/filterlist" />
 
-	<WebView
-		android:id="@+id/grantPage"
-		android:layout_width="400dp"
-		android:layout_height="400dp"
-		android:layout_centerHorizontal="true"
-		android:layout_centerVertical="true" />
 </RelativeLayout>

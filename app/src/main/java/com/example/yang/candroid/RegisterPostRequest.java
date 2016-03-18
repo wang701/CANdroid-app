@@ -25,12 +25,12 @@ public class RegisterPostRequest extends JsonObjectRequest {
 		"CJpZF90b2tlbiIsImlkX3Rva2VuIHRva2VuIl0sImNsaWVudF9uYW1lIjoiQ0FOZHJva" +
 		"WQgTG9nZ2VyIiwiY2xpZW50X3VyaSI6Imh0dHBzOi8vZ2l0aHViLmNvbS9PQVRTLUdyb" +
 		"3VwL0NBTmRyb2lkLWxvZ2dlciIsImNvbnRhY3RzIjpbIkNBTkRyb2lkIEluZm8gPGluZ" +
-		"m9AaXNvYmx1ZS5vcmc-Il0sInNvZnR3YXJlX2lkIjoiOWJjZTQ4OWUtNGM4NS00MjE4L" +
-		"WI4ZTYtNWI2ZGM4NzFlZmE2IiwicmVnaXN0cmF0aW9uX3Byb2l2ZGVyIjoiaHR0cHM6L" +
-		"y9pZGVudGl0eS5vYWRhLWRldi5jb20iLCJpYXQiOjE0NTgxNTI0Nzl9.yNOUz8N5DU4c" +
-		"6Mjm6vLjvUuE21isneFFCPmROhNr2HaowHRpFx0_xwA34iLTsV_8fx9-AZEdFtMRAs1y" +
-		"ZNjVmiIL4LoUbxkitq_s3_1vHB9NNhR77FKixsUD4KZqiFp0K1T5KlAsUksZk3cBbuxy" +
-		"IJww0-dea9aOXDPbEQyfX3Q";
+		"m9AaXNvYmx1ZS5vcmc-Il0sInNvZnR3YXJlX2lkIjoiNDdlNjU0MjgtMjU5Ny00M2I3L" +
+		"Tg1ZmUtZmY1NjMzMmE5NGEzIiwicmVnaXN0cmF0aW9uX3Byb3ZpZGVyIjoiaHR0cHM6L" +
+		"y9pZGVudGl0eS5vYWRhLWRldi5jb20iLCJpYXQiOjE0NTgyNjcwNjB9.O4dBnI_O0jGB" +
+		"Tmvq11jQcPAkUYRUHBbaXCPDa4nl3BQfAgkNN_PGpiX9khTep_Uh3S2MljNNKSxEqwiK" +
+		"XldXUvC6awWGXDVtmqIp_Gjb3SJ-iU6NUDFN8qN-TltODStyGvefdq1SvjOrQfmdgCsB" +
+		"zOmkUT755nFCssMLAZltiFQ";
 	private Response.Listener<OADARegistration> mListener;
 
 	public RegisterPostRequest(OADAConfiguration wellKnown,

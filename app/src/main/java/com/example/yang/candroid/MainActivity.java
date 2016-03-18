@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningServiceInfo;
 import android.app.FragmentManager;
+import android.app.FragmentTransaction;
 import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.Context;
@@ -59,7 +60,7 @@ public class MainActivity extends Activity {
 	public static Filter mFilter;
 	public static MsgAdapter mFilterItems;
 	public static ArrayList<Filter> mFilters = new ArrayList<Filter>();
-	
+
 	private static String mAuthUrl;
 	private static String mCallbackUrl;
 	private static String mAuthRequestUrl;
@@ -241,14 +242,6 @@ public class MainActivity extends Activity {
 		Log.d(TAG, "initializing parameters in initCandroid()");
 		mLog = new MsgAdapter(this, 100);
 		mFilterItems = new MsgAdapter(this, 20);
-		// TODO: make a custom WebView
-		mWebView = (WebView) findViewById(R.id.grantPage);
-        mWebView.clearCache(true);
-        mWebView.getSettings().setJavaScriptEnabled(true);
-        mWebView.getSettings().setBuiltInZoomControls(true);
-        mWebView.getSettings().setDisplayZoomControls(false);
-        mWebView.setWebViewClient(mWebViewClient);
-		mWebView.setVisibility(View.INVISIBLE);
 		mMsgList = (ListView) findViewById(R.id.msglist);
 		mFilterList = (ListView) findViewById(R.id.filterlist);
 		mMsgList.setAdapter(mLog);
@@ -256,27 +249,27 @@ public class MainActivity extends Activity {
 
 		mFilterDialog = new FilterDialogFragment();
 		mWarningDialog = new WarningDialogFragment();
-		mQueue = Volley.newRequestQueue(getApplicationContext());
-		mConfigReq = new ConfigGetRequest("vip4.ecn.purdue.edu",
-			new Response.Listener<OADAConfiguration>() {
-			@Override
-			public void onResponse(OADAConfiguration wellKnown) {
-				mConfig = wellKnown;
-				mRegisterReq = new RegisterPostRequest(mConfig,
-					new Response.Listener<OADARegistration>() {
-					@Override
-					public void onResponse(OADARegistration reg) {
-						mReg = reg;
-						mWebView.setVisibility(View.VISIBLE);
-						startAuthorize(mConfig.mAuthorizationEndpoint,
-							mReg.mClientId,
-							mReg.mRedirectUris[0]);
-					}
-				});
-				mQueue.add(mRegisterReq);
+
+		FragmentManager fragmentManager = getFragmentManager();
+		FragmentTransaction fragmentTransaction =
+			fragmentManager.beginTransaction();
+		OADAWebViewFragment oAuthFragment = new OADAWebViewFragment();
+		fragmentTransaction.add(R.layout.oada_fragment, oAuthFragment);
+		fragmentTransaction.commit();
+/*		oAuthFragment.getAccessToken("vip4.ecn.purdue.edu",
+			new OADAWebViewFragment.Listener<OADAAccessToken>() {
+				@Override
+				public void onResponse(OADAAccessToken response) {
+					// Start OADA service with response.mAccessToken
+				}
+			},
+			new OADAWebViewFragment.Listener<OADAError>() {
+				@Override
+				public void onResponse(OADAError response) {
+				// Show error and suck it up
 			}
 		});
-		mQueue.add(mConfigReq);
+*/
 	}
 
 	/* callback for adding new filters */
@@ -369,44 +362,45 @@ public class MainActivity extends Activity {
 	}
 
 	private void startAuthorize(String authorizationEndpoint,
-		String clientId, String redirectUris) {
+								String clientId, String redirectUris) {
 
 		Uri authUri = Uri.parse(authorizationEndpoint)
-			.buildUpon()
-			.appendQueryParameter("response_type", "token")
-			.appendQueryParameter("client_id", clientId)
-			// TODO: randomize the state
-			.appendQueryParameter("state", "xyz")
-			.appendQueryParameter("redirect_uri", redirectUris)
-			.appendQueryParameter("scope", "all")
-			.build();
+				.buildUpon()
+				.appendQueryParameter("response_type", "token")
+				.appendQueryParameter("client_id", clientId)
+						// TODO: randomize the state
+				.appendQueryParameter("state", "xyz")
+				.appendQueryParameter("redirect_uri", redirectUris)
+				.appendQueryParameter("scope", "all")
+				.build();
 
 		mAuthUrl = authUri.toString();
 
-        (new AsyncTask<Void, Void, String>() {
-            @Override
-            protected String doInBackground(Void... params) {
+		(new AsyncTask<Void, Void, String>() {
+			@Override
+			protected String doInBackground(Void... params) {
 				return null;
-            }
-
-            @Override
-            protected void onPostExecute(String url) {
-				url = mAuthUrl;
-                mWebView.loadUrl(url);
 			}
-        }).execute();
-    }
+
+			@Override
+			protected void onPostExecute(String url) {
+				url = mAuthUrl;
+				mWebView.loadUrl(url);
+			}
+		}).execute();
+	}
 
 	private WebViewClient mWebViewClient = new WebViewClient() {
-        @Override
-        public boolean shouldOverrideUrlLoading(WebView view, String url) {
-            if ((url != null) && (url.contains(mReg.mRedirectUris[0]))) {
-                mWebView.stopLoading();
-                mWebView.setVisibility(View.INVISIBLE); // Hide webview if necessary
+		@Override
+		public boolean shouldOverrideUrlLoading(WebView view, String url) {
+			if ((url != null) && (url.contains(mReg.mRedirectUris[0]))) {
+				mWebView.stopLoading();
+				mWebView.setVisibility(View.INVISIBLE); // Hide webview if necessary
 				mOADAToken = new OADAAccessToken(url);
 				// TODO: should throw some error for mismatched state
 				if (mOADAToken.isStateValid("xyz")) {
 					Log.i(TAG, "token is valid");
+					Log.i(TAG, "token: " + mOADAToken.mAccessToken);
 				} else {
 					Log.e(TAG, "state mismatch, token is invalid");
 				}
@@ -442,8 +436,8 @@ public class MainActivity extends Activity {
 		protected void onProgressUpdate(J1939Message... msg) {
 			mLog.add(msg[0].toString());
 			mQueue.add(new MessagePostRequest(mOADAToken.mAccessToken,
-				mConfig.mOadaBaseUri + "bookmarks/candroid",
-				msg[0].toString()));
+					mConfig.mOadaBaseUri + "bookmarks/candroid",
+					msg[0].toString()));
 		}
 
 		protected void onPostExecute(Void Result) {
