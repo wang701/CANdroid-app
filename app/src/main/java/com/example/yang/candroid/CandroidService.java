@@ -1,27 +1,27 @@
 package com.example.yang.candroid;
 
-import android.app.ActivityManager;
 import android.app.Notification;
-import android.app.Service;
 import android.app.PendingIntent;
+import android.app.Service;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.IBinder;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
-import android.util.Log;
 import android.support.v4.app.NotificationCompat.Builder;
+import android.util.Log;
 
-import java.io.IOException;
+import org.isoblue.can.CanSocketJ1939;
+import org.isoblue.can.CanSocketJ1939.Filter;
+import org.isoblue.can.CanSocketJ1939.J1939Message;
+
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 
-import org.isoblue.can.CanSocketJ1939;
-import org.isoblue.can.CanSocketJ1939.J1939Message;
-import org.isoblue.can.CanSocketJ1939.Filter;
-
 public class CandroidService extends Service {
+
 	public static final String FOREGROUND_STOP =
 		"com.example.yang.candroid.CandroidService.FOREGROUND.stop";
 	public static final String FOREGROUND_START =

@@ -271,7 +271,7 @@ public class MainActivity extends Activity {
     public void onStreamStop() {
         stopTask();
         closeCanSocket();
-        stopForegroundService();
+        stopCandroidService();
         ToggleButton b = (ToggleButton) findViewById(R.id.streamToggle);
         b.setChecked(false);
     }
@@ -282,7 +282,7 @@ public class MainActivity extends Activity {
         startTask();
         Log.d(TAG, "isServiceRunning: " +
                 isServiceRunning(CandroidService.class));
-        startForegroundService();
+        startCandroidService();
     }
 
     private boolean isServiceRunning(Class<?> serviceClass) {
@@ -332,7 +332,7 @@ public class MainActivity extends Activity {
         mMsgLoggerTask = null;
     }
 
-    private void startForegroundService() {
+    private void startCandroidService() {
         Intent startForegroundIntent = new Intent(
                 CandroidService.FOREGROUND_START);
         startForegroundIntent.putExtra("save_option", mSaveFiltered);
@@ -342,7 +342,7 @@ public class MainActivity extends Activity {
         startService(startForegroundIntent);
     }
 
-    private void stopForegroundService() {
+    private void stopCandroidService() {
         Intent stopForegroundIntent = new Intent(
                 CandroidService.FOREGROUND_STOP);
         stopForegroundIntent.setClass(

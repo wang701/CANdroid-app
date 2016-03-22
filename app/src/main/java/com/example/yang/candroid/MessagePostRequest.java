@@ -1,7 +1,5 @@
 package com.example.yang.candroid;
 
-import android.util.Log;
-
 import com.android.volley.AuthFailureError;
 import com.android.volley.NetworkResponse;
 import com.android.volley.Request;
@@ -18,50 +16,51 @@ import java.util.Map;
 
 public class MessagePostRequest extends JsonRequest<Void> {
 
-	private String mAccessToken;
+    public OADAAccessToken mToken;
 
-	public MessagePostRequest(String accessToken, String url,
-		String msg) {
-		super(Request.Method.POST, url, makeJson(msg).toString(),
-			new Listener(), new ErrorListener());
-		mAccessToken = accessToken;
-	}
+    public MessagePostRequest(OADAConfiguration config, OADAAccessToken token,
+                              String msg) {
+        super(Request.Method.POST, config.mOadaBaseUri, makeJson(msg)
+                        .toString(), new Listener(), new ErrorListener());
+        mToken = token;
+    }
 
-	@Override
-	public Map<String, String> getHeaders() throws AuthFailureError {
-		Map<String, String> headers = new HashMap<String, String>();
-		headers.put("Authorization", "Bearer" + " " + mAccessToken);
-		return headers;
-	}
+    @Override
+    public Map<String, String> getHeaders() throws AuthFailureError {
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("Authorization", mToken.mTokenType + " " + mToken
+				.mAccessToken);
+        return headers;
+    }
 
-	@Override
-	protected Response<Void> parseNetworkResponse(NetworkResponse response) {
-		// Don't Care about response
-		return null;
-	}
+    @Override
+    protected Response<Void> parseNetworkResponse(NetworkResponse response) {
+        // Don't Care about response
+        return null;
+    }
 
-	private static JSONObject makeJson(String msg) {
-		JSONObject jsonObject = new JSONObject();
-		try {
-			jsonObject.put("data", msg);
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
+    private static JSONObject makeJson(String msg) {
+        JSONObject jsonObject = new JSONObject();
+        try {
+            jsonObject.put("data", msg);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
 
-		return jsonObject;
-	}
+        return jsonObject;
+    }
 
-	private static class ErrorListener implements Response.ErrorListener {
-		@Override
-		public void onErrorResponse(VolleyError error) {
-			VolleyLog.d("Error: " + error.getMessage());
-		}
-	}
+    private static class ErrorListener implements Response.ErrorListener {
+        @Override
+        public void onErrorResponse(VolleyError error) {
+            VolleyLog.d("Error: " + error.getMessage());
+        }
+    }
 
-	private static class Listener implements Response.Listener<Void> {
-		@Override
-		public void onResponse(Void v) {
+    private static class Listener implements Response.Listener<Void> {
+        @Override
+        public void onResponse(Void v) {
 
-		}
-	}
+        }
+    }
 }
