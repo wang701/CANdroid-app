@@ -60,4 +60,12 @@
         android:layout_below="@+id/filterlist"
         android:layout_alignEnd="@+id/filterlist" />
 
+    <fragment
+        android:name="com.example.yang.candroid.OADAWebViewFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/OADAFragment"
+        android:layout_alignTop="@+id/filterlist"
+        android:layout_centerHorizontal="true" />
+
 </RelativeLayout>

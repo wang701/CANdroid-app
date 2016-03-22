@@ -2,6 +2,7 @@ package com.example.yang.candroid;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -32,9 +33,8 @@ public class OADAWebViewFragment extends WebViewFragment {
     public String mRandState;
     public boolean mIsWebViewAvailable;
 
-    private Listener<OADAAccessToken> mSucessListener;
+    private Listener<OADAAccessToken> mSuccessListener;
     private Listener<OADAError> mErrorListener;
-    private Context mContext;
 
     private static final String TAG = "OADAWebViewFragment";
 
@@ -43,53 +43,99 @@ public class OADAWebViewFragment extends WebViewFragment {
 
     @Override
     public void onAttach(Activity activity) {
+        Log.d(TAG, "in onAttach()");
         super.onAttach(activity);
-        mContext = activity;
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
+        Log.i(TAG, "in onCreateView()");
+        super.onCreateView(inflater, container, savedInstanceState);
+        final View view = inflater.inflate(R.layout.oada_fragment, container,
+                false);
+
+        mWebView = getWebView();
+
         if (mWebView != null) {
             mWebView.destroy();
         }
-        View view = inflater.inflate(R.layout.oada_fragment, container, false);
+
         mWebView = (WebView) view.findViewById(R.id.grantPage);
         mWebView.clearCache(true);
         mWebView.getSettings().setJavaScriptEnabled(true);
         mWebView.getSettings().setBuiltInZoomControls(true);
         mWebView.getSettings().setDisplayZoomControls(false);
-        mWebView.setWebViewClient(wvClient);
         mWebView.setVisibility(View.INVISIBLE);
+        mWebView.setWebViewClient(new WebViewClient() {
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+
+                if ((url != null) && (url.contains(mReg.mRedirectUris[0]))) {
+                    Log.i(TAG, "in wvClient");
+                    mWebView.stopLoading();
+                    mWebView.setVisibility(View.INVISIBLE);
+                    mOADAToken = new OADAAccessToken(url);
+                    if (mOADAToken.isStateValid(mRandState)) {
+                        Log.i(TAG, "token is valid");
+                        Log.i(TAG, "token: " + mOADAToken.mAccessToken);
+
+                        if (mSuccessListener != null) {
+                            mSuccessListener.onResponse(mOADAToken);
+                        }
+                    } else {
+                        Log.e(TAG, "state mismatch, token is invalid");
+
+                        if (mErrorListener != null) {
+                            mErrorListener.onResponse(mOADAError);
+                        }
+                    }
+                    return true;
+                }
+                return false;
+            }
+        });
+
         mIsWebViewAvailable = true;
+
         return view;
+
     }
 
-    public void getAccessToken(String domain,
-                               Listener<OADAAccessToken> sucesssListener,
+    public void getAccessToken(String domain, Context context,
+                               Listener<OADAAccessToken> successListener,
                                Listener<OADAError> errorListener) {
-        mSucessListener = sucesssListener;
+        mSuccessListener = successListener;
         mErrorListener = errorListener;
 
-        mQueue = Volley.newRequestQueue(mContext);
+        mQueue = Volley.newRequestQueue(context);
         mConfigReq = new ConfigGetRequest(domain,
-            new Response.Listener<OADAConfiguration>() {
-                @Override
-				public void onResponse(OADAConfiguration wellKnown) {
-					mConfig = wellKnown;
-					mRegisterReq = new RegisterPostRequest(mConfig,
-						new Response.Listener<OADARegistration>() {
-							@Override
-							public void onResponse(OADARegistration reg) {
-								mReg = reg;
-								mWebView.setVisibility(View.VISIBLE);
-								startAuthorize(mConfig, mReg);
-							}
-						});
-					mQueue.add(mRegisterReq);
-				}
-			});
+                new Response.Listener<OADAConfiguration>() {
+
+                    @Override
+                    public void onResponse(OADAConfiguration wellKnown) {
+                        mConfig = wellKnown;
+                        mRegisterReq = new RegisterPostRequest(mConfig,
+                                new Response.Listener<OADARegistration>() {
+
+                                    @Override
+                                    public void onResponse(OADARegistration
+                                                                   reg) {
+                                        mReg = reg;
+                                        Log.i(TAG, mConfig
+                                                .mAuthorizationEndpoint);
+                                        Log.i(TAG, mConfig
+                                                .mRegistrationEndpoint);
+                                        Log.i(TAG, mReg.mRedirectUris[0]);
+                                        mWebView.setVisibility(View.VISIBLE);
+                                        startAuthorize(mConfig, mReg);
+                                    }
+                                });
+                        mQueue.add(mRegisterReq);
+                    }
+                });
         mQueue.add(mConfigReq);
     }
 
@@ -105,7 +151,8 @@ public class OADAWebViewFragment extends WebViewFragment {
         return mRandState;
     }
 
-    private void startAuthorize(OADAConfiguration config, OADARegistration reg) {
+    private void startAuthorize(OADAConfiguration config, OADARegistration
+            reg) {
 
         Uri authUri = Uri.parse(config.mAuthorizationEndpoint)
                 .buildUpon()
@@ -127,26 +174,28 @@ public class OADAWebViewFragment extends WebViewFragment {
 
             @Override
             protected void onPostExecute(String url) {
+                Log.i(TAG, "in onPostExecute()");
                 url = AuthUrl;
+                Log.i(TAG, url);
                 mWebView.loadUrl(url);
+
             }
         }).execute();
     }
 
-    private WebViewClient wvClient = new WebViewClient() {
+/*    private WebViewClient wvClient = new WebViewClient() {
 
-		@Override
-        public boolean shouldOverrideUrlLoading(WebView view, String url) {
-
+        @Override
+        public void onPageStarted(WebView view, String url, Bitmap favicon) {
             if ((url != null) && (url.contains(mReg.mRedirectUris[0]))) {
-                mWebView.setVisibility(View.INVISIBLE);
+                mWebView.stopLoading();
                 mOADAToken = new OADAAccessToken(url);
                 if (mOADAToken.isStateValid(mRandState)) {
                     Log.i(TAG, "token is valid");
                     Log.i(TAG, "token: " + mOADAToken.mAccessToken);
 
-                    if(mSucessListener != null) {
-                        mSucessListener.onResponse(mOADAToken);
+                    if(mSuccessListener != null) {
+                        mSuccessListener.onResponse(mOADAToken);
                     }
                 } else {
                     Log.e(TAG, "state mismatch, token is invalid");
@@ -155,9 +204,38 @@ public class OADAWebViewFragment extends WebViewFragment {
                         mErrorListener.onResponse(mOADAError);
                     }
                 }
-                return false;
+            } else {
+                super.onPageStarted(view, url, favicon);
             }
-            return true;
         }
     };
+
+		@Override
+        public boolean shouldOverrideUrlLoading(WebView view, String url) {
+
+            if ((url != null) && (url.contains(mReg.mRedirectUris[0]))) {
+                Log.i(TAG, "in wvClient");
+                mWebView.stopLoading();
+                mWebView.setVisibility(View.INVISIBLE);
+                mOADAToken = new OADAAccessToken(url);
+                if (mOADAToken.isStateValid(mRandState)) {
+                    Log.i(TAG, "token is valid");
+                    Log.i(TAG, "token: " + mOADAToken.mAccessToken);
+
+                    if(mSuccessListener != null) {
+                        mSuccessListener.onResponse(mOADAToken);
+                    }
+                } else {
+                    Log.e(TAG, "state mismatch, token is invalid");
+
+                    if(mErrorListener != null) {
+                        mErrorListener.onResponse(mOADAError);
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+    };
+*/
 }

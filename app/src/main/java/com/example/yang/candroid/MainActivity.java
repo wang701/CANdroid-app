@@ -9,7 +9,6 @@ import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.Context;
 import android.content.IntentFilter;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -18,16 +17,10 @@ import android.os.SystemClock;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import android.widget.ListView;
 import android.util.Log;
 import android.widget.Toast;
 import android.widget.ToggleButton;
-
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.toolbox.Volley;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,410 +31,354 @@ import org.isoblue.can.CanSocketJ1939.Filter;
 
 public class MainActivity extends Activity {
 
-	private CanSocketJ1939 mSocket;
-	private J1939Message mMsg;
-	private MsgLoggerTask mMsgLoggerTask;
-	private MsgAdapter mLog;
-	private FilterDialogFragment mFilterDialog;
-	private WarningDialogFragment mWarningDialog;
-	private FragmentManager mFm = getFragmentManager();
-	private ListView mMsgList;
-	private ListView mFilterList;
-	private WebView mWebView;
-	private RequestQueue mQueue;
-	private ConfigGetRequest mConfigReq;
-	private RegisterPostRequest mRegisterReq;
-	private OADAAccessToken mOADAToken;
-	private OADAConfiguration mConfig;
-	private OADARegistration mReg;
-	private boolean mIsCandroidServiceRunning;
-	private boolean mSaveFiltered = false;
+    private CanSocketJ1939 mSocket;
+    private J1939Message mMsg;
+    private MsgLoggerTask mMsgLoggerTask;
+    private MsgAdapter mLog;
 
-	public static Filter mFilter;
-	public static MsgAdapter mFilterItems;
-	public static ArrayList<Filter> mFilters = new ArrayList<Filter>();
+    private FilterDialogFragment mFilterDialog;
+    private WarningDialogFragment mWarningDialog;
+    private OADAWebViewFragment mOAuthFragment;
+    private FragmentManager mFm = getFragmentManager();
 
-	private static String mAuthUrl;
-	private static String mCallbackUrl;
-	private static String mAuthRequestUrl;
-	private static final String CAN_INTERFACE = "can0";
-	private static final String TAG = "CandroidActivity";
-	private static final String msgFilter = "Adding new filter(s) will stop " +
-			"current logging, do you wish to continue?";
-	private static final String msgStop = "Stop logging and Candroid Service?";
-	private static final String msgLogOpt = "Change log options will stop " +
-			"current logging, do you wish to continue?";
+    private ListView mMsgList;
+    private ListView mFilterList;
 
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		Log.d(TAG, "in onCreate()");
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_main);
-		initCandroid();
-	}
+    private boolean mIsCandroidServiceRunning;
+    private boolean mSaveFiltered = false;
 
-	@Override
-	protected void onResume() {
-		super.onResume();
-		registerReceiver(broadcastReceiver,
-				new IntentFilter(CandroidService.BROADCAST_ACTION));
-	}
+    public static Filter mFilter;
+    public static MsgAdapter mFilterItems;
+    public static ArrayList<Filter> mFilters = new ArrayList<Filter>();
 
-	@Override
-	protected void onSaveInstanceState(Bundle savedInstanceState) {
-		Log.d(TAG, "in onSaveInstanceState()");
-		String[] values = mFilterItems.getValues();
-		savedInstanceState.putStringArray("filtersList", values);
-		super.onSaveInstanceState(savedInstanceState);
-	}
+    private static final String CAN_INTERFACE = "can0";
+    private static final String TAG = "CandroidActivity";
+    private static final String msgFilter = "Adding new filter(s) will stop " +
+            "current logging, do you wish to continue?";
+    private static final String msgStop = "Stop logging and Candroid Service?";
+    private static final String msgLogOpt = "Change log options will stop " +
+            "current logging, do you wish to continue?";
 
-	@Override
-	protected void onRestoreInstanceState(Bundle savedInstanceState) {
-		super.onRestoreInstanceState(savedInstanceState);
-		Log.d(TAG, "in onRestoreInstanceState()");
-		String[] values = savedInstanceState.getStringArray("filtersList");
-		if (values != null) {
-			mFilterItems.addArray(values);
-		}
-	}
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        Log.d(TAG, "in onCreate()");
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        initCandroid();
+    }
 
-	@Override
-	protected void onDestroy() {
-		Log.d(TAG, "in onDestroy()");
-		if (mMsgLoggerTask != null && mSocket != null) {
-			stopTask();
-			closeCanSocket();
-			Log.d(TAG, "socket closed, task stopped");
-		}
-		super.onDestroy();
-	}
+    @Override
+    protected void onResume() {
+        super.onResume();
+        registerReceiver(broadcastReceiver,
+                new IntentFilter(CandroidService.BROADCAST_ACTION));
+    }
 
-	@Override
-	protected void onPause() {
-		Log.d(TAG, "in onPause()");
-		unregisterReceiver(broadcastReceiver);
-		super.onPause();
-	}
+    @Override
+    protected void onSaveInstanceState(Bundle savedInstanceState) {
+        Log.d(TAG, "in onSaveInstanceState()");
+        String[] values = mFilterItems.getValues();
+        savedInstanceState.putStringArray("filtersList", values);
+        super.onSaveInstanceState(savedInstanceState);
+    }
 
-	@Override
-	protected void onStart() {
-		Log.d(TAG, "in onStart()");
-		if (isServiceRunning(CandroidService.class)) {
-			ToggleButton b = (ToggleButton) findViewById(R.id.streamToggle);
-			b.setChecked(true);
-			onStreamGo();
-		}
-		super.onStart();
-	}
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        Log.d(TAG, "in onRestoreInstanceState()");
+        String[] values = savedInstanceState.getStringArray("filtersList");
+        if (values != null) {
+            mFilterItems.addArray(values);
+        }
+    }
 
-	@Override
-	protected void onStop() {
-		Log.d(TAG, "in onStop()");
-		if (mMsgLoggerTask != null && mSocket != null) {
-			stopTask();
-			closeCanSocket();
-			Log.d(TAG, "socket closed, task stopped");
-		}
-		super.onStop();
-	}
+    @Override
+    protected void onDestroy() {
+        Log.d(TAG, "in onDestroy()");
+        if (mMsgLoggerTask != null && mSocket != null) {
+            stopTask();
+            closeCanSocket();
+            Log.d(TAG, "socket closed, task stopped");
+        }
+        super.onDestroy();
+    }
 
-	@Override
-	public boolean onPrepareOptionsMenu(Menu menu) {
-		super.onPrepareOptionsMenu(menu);
-		menu.findItem(R.id.save_option).setChecked(mSaveFiltered);
-		return true;
-	}
+    @Override
+    protected void onPause() {
+        Log.d(TAG, "in onPause()");
+        unregisterReceiver(broadcastReceiver);
+        super.onPause();
+    }
 
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.menu_main, menu);
-		return true;
-	}
+    @Override
+    protected void onStart() {
+        Log.d(TAG, "in onStart()");
+        if (isServiceRunning(CandroidService.class)) {
+            ToggleButton b = (ToggleButton) findViewById(R.id.streamToggle);
+            b.setChecked(true);
+            onStreamGo();
+        }
+        super.onStart();
+    }
 
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		int id = item.getItemId();
-		switch (id) {
-			case R.id.add_filters:
-				if (isServiceRunning(CandroidService.class)) {
-					mWarningDialog.mWarningMsg = msgFilter;
-					mWarningDialog.show(mFm, "warning");
-				} else {
-					mFilterDialog.show(mFm, "filter");
-				}
-				return true;
-			case R.id.save_option:
-				if (isServiceRunning(CandroidService.class)) {
-					mWarningDialog.mWarningMsg = msgLogOpt;
-					mWarningDialog.show(mFm, "warning");
-				}
-				if (item.isChecked()) {
-					mSaveFiltered = false;
-					item.setChecked(false);
-				} else {
-					mSaveFiltered = true;
-					item.setChecked(true);
-				}
-				return true;
-			case R.id.view_old_logs:
-				Uri selectedUri = Uri.parse(Environment
-						.getExternalStorageDirectory() + "/Log/");
-				Intent intent = new Intent(Intent.ACTION_VIEW);
-				intent.setDataAndType(selectedUri, "resource/folder");
-				if (intent.resolveActivityInfo(getPackageManager(), 0) != null) {
-					startActivity(intent);
-				} else {
-					Toast.makeText(this, "No file manager app found",
-							Toast.LENGTH_LONG).show();
-				}
-			default:
-				return super.onOptionsItemSelected(item);
-		}
-	}
+    @Override
+    protected void onStop() {
+        Log.d(TAG, "in onStop()");
+        if (mMsgLoggerTask != null && mSocket != null) {
+            stopTask();
+            closeCanSocket();
+            Log.d(TAG, "socket closed, task stopped");
+        }
+        super.onStop();
+    }
 
-	/* callback for streamToggle */
-	public void toggleListener(View view) throws IOException {
-		ToggleButton b = (ToggleButton) view;
-		if (b.isChecked()) {
-			onStreamGo();
-		} else {
-			mIsCandroidServiceRunning =
-					isServiceRunning(CandroidService.class);
-			if (mIsCandroidServiceRunning) {
-				mWarningDialog.mWarningMsg = msgStop;
-				mWarningDialog.show(mFm, "warning");
-			}
-		}
-	}
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        super.onPrepareOptionsMenu(menu);
+        menu.findItem(R.id.save_option).setChecked(mSaveFiltered);
+        return true;
+    }
 
-	private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
-		@Override
-		public void onReceive(Context context, Intent intent) {
-			Log.d(TAG, "in OnReceive()");
-			renderOldView(intent);
-		}
-	};
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
 
-	private void renderOldView(Intent intent) {
-		Bundle b = intent.getBundleExtra("serviceBundle");
-		mSaveFiltered = b.getBoolean("saveOption");
-		mFilters = (ArrayList<Filter>) b.getSerializable("filters");
-		ArrayList<String> filterStrList = new ArrayList<String>();
-		for (Filter f : mFilters) {
-			filterStrList.add("Filtering on " + f.toString());
-		}
-		String[] filterStr = new String[filterStrList.size()];
-		filterStr = filterStrList.toArray(filterStr);
-		if (mFilterItems.isEmpty()) {
-			mFilterItems.addArray(filterStr);
-		}
-	}
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        switch (id) {
+            case R.id.add_filters:
+                if (isServiceRunning(CandroidService.class)) {
+                    mWarningDialog.mWarningMsg = msgFilter;
+                    mWarningDialog.show(mFm, "warning");
+                } else {
+                    mFilterDialog.show(mFm, "filter");
+                }
+                return true;
+            case R.id.save_option:
+                if (isServiceRunning(CandroidService.class)) {
+                    mWarningDialog.mWarningMsg = msgLogOpt;
+                    mWarningDialog.show(mFm, "warning");
+                }
+                if (item.isChecked()) {
+                    mSaveFiltered = false;
+                    item.setChecked(false);
+                } else {
+                    mSaveFiltered = true;
+                    item.setChecked(true);
+                }
+                return true;
+            case R.id.view_old_logs:
+                Uri selectedUri = Uri.parse(Environment
+                        .getExternalStorageDirectory() + "/Log/");
+                Intent intent = new Intent(Intent.ACTION_VIEW);
+                intent.setDataAndType(selectedUri, "resource/folder");
+                if (intent.resolveActivityInfo(getPackageManager(), 0) !=
+                        null) {
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(this, "No file manager app found",
+                            Toast.LENGTH_LONG).show();
+                }
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
 
-	public void initCandroid() {
-		Log.d(TAG, "initializing parameters in initCandroid()");
-		mLog = new MsgAdapter(this, 100);
-		mFilterItems = new MsgAdapter(this, 20);
-		mMsgList = (ListView) findViewById(R.id.msglist);
-		mFilterList = (ListView) findViewById(R.id.filterlist);
-		mMsgList.setAdapter(mLog);
-		mFilterList.setAdapter(mFilterItems);
+    /* callback for streamToggle */
+    public void toggleListener(View view) throws IOException {
+        ToggleButton b = (ToggleButton) view;
+        if (b.isChecked()) {
+            onStreamGo();
+        } else {
+            mIsCandroidServiceRunning =
+                    isServiceRunning(CandroidService.class);
+            if (mIsCandroidServiceRunning) {
+                mWarningDialog.mWarningMsg = msgStop;
+                mWarningDialog.show(mFm, "warning");
+            }
+        }
+    }
 
-		mFilterDialog = new FilterDialogFragment();
-		mWarningDialog = new WarningDialogFragment();
+    private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Log.d(TAG, "in OnReceive()");
+            renderOldView(intent);
+        }
+    };
 
-		FragmentManager fragmentManager = getFragmentManager();
-		FragmentTransaction fragmentTransaction =
-			fragmentManager.beginTransaction();
-		OADAWebViewFragment oAuthFragment = new OADAWebViewFragment();
-		fragmentTransaction.add(R.layout.oada_fragment, oAuthFragment);
-		fragmentTransaction.commit();
-/*		oAuthFragment.getAccessToken("vip4.ecn.purdue.edu",
-			new OADAWebViewFragment.Listener<OADAAccessToken>() {
-				@Override
-				public void onResponse(OADAAccessToken response) {
-					// Start OADA service with response.mAccessToken
-				}
-			},
-			new OADAWebViewFragment.Listener<OADAError>() {
-				@Override
-				public void onResponse(OADAError response) {
-				// Show error and suck it up
-			}
-		});
-*/
-	}
+    private void renderOldView(Intent intent) {
+        Bundle b = intent.getBundleExtra("serviceBundle");
+        mSaveFiltered = b.getBoolean("saveOption");
+        mFilters = (ArrayList<Filter>) b.getSerializable("filters");
+        ArrayList<String> filterStrList = new ArrayList<String>();
+        for (Filter f : mFilters) {
+            filterStrList.add("Filtering on " + f.toString());
+        }
+        String[] filterStr = new String[filterStrList.size()];
+        filterStr = filterStrList.toArray(filterStr);
+        if (mFilterItems.isEmpty()) {
+            mFilterItems.addArray(filterStr);
+        }
+    }
 
-	/* callback for adding new filters */
-	public void onAddNewFilter() {
-		onStreamStop();
-		mFilterItems.clear();
-	}
+    public void initCandroid() {
+        Log.d(TAG, "initializing parameters in initCandroid()");
+        mLog = new MsgAdapter(this, 100);
+        mFilterItems = new MsgAdapter(this, 20);
+        mMsgList = (ListView) findViewById(R.id.msglist);
+        mFilterList = (ListView) findViewById(R.id.filterlist);
+        mMsgList.setAdapter(mLog);
+        mFilterList.setAdapter(mFilterItems);
 
-	/* callback for stop everything */
-	public void onStreamStop() {
-		stopTask();
-		closeCanSocket();
-		stopForegroundService();
-		ToggleButton b = (ToggleButton) findViewById(R.id.streamToggle);
-		b.setChecked(false);
-	}
+        mFilterDialog = new FilterDialogFragment();
+        mWarningDialog = new WarningDialogFragment();
+        mOAuthFragment = new OADAWebViewFragment();
 
-	/* callback for starting the logger */
-	public void onStreamGo() {
-		setupCanSocket();
-		startTask();
-		Log.d(TAG, "isServiceRunning: " +
-				isServiceRunning(CandroidService.class));
-		startForegroundService();
-	}
+        FragmentTransaction fragmentTransaction = mFm.beginTransaction();
+        fragmentTransaction.add(R.id.OADAFragment, mOAuthFragment);
+        fragmentTransaction.commit();
 
-	private boolean isServiceRunning(Class<?> serviceClass) {
-		ActivityManager manager = (ActivityManager)
-				getSystemService(Context.ACTIVITY_SERVICE);
-		for (RunningServiceInfo service :
-				manager.getRunningServices(Integer.MAX_VALUE)) {
-			if (serviceClass.getName().equals(service.service.getClassName())) {
-				return true;
-			}
-		}
-		return false;
-	}
+        Context context = mFm.findFragmentById(R.id.OADAFragment).getActivity
+                ().getApplicationContext();
 
-	private void setupCanSocket() {
-		try {
-			mSocket = new CanSocketJ1939(CAN_INTERFACE);
-			mSocket.setPromisc();
-			mSocket.setTimestamp();
-			mSocket.setfilter(mFilters);
-		} catch (IOException e) {
-			Log.e(TAG, "socket creation on " + CAN_INTERFACE + " failed");
-		}
-	}
+        mOAuthFragment.getAccessToken("vip4.ecn.purdue.edu", context,
+                new OADAWebViewFragment.Listener<OADAAccessToken>() {
+                    @Override
+                    public void onResponse(OADAAccessToken response) {
+                        // Start OADA service with response.mAccessToken
+                    }
+                },
+                new OADAWebViewFragment.Listener<OADAError>() {
+                    @Override
+                    public void onResponse(OADAError response) {
+                        // Show error and suck it up
+                    }
+                });
+    }
 
-	private void closeCanSocket() {
-		if (mSocket != null) {
-			try {
-				mSocket.close();
-				mSocket = null;
-			} catch (IOException e) {
-				Log.e(TAG, "cannot close socket");
-			}
-		}
-	}
+    /* callback for adding new filters */
+    public void onAddNewFilter() {
+        onStreamStop();
+        mFilterItems.clear();
+    }
 
-	private void startTask() {
-		Log.d(TAG, "in startTask(), start AsyncTask");
-		mMsgLoggerTask = new MsgLoggerTask();
-		mMsgLoggerTask.execute(mSocket);
-	}
+    /* callback for stop everything */
+    public void onStreamStop() {
+        stopTask();
+        closeCanSocket();
+        stopForegroundService();
+        ToggleButton b = (ToggleButton) findViewById(R.id.streamToggle);
+        b.setChecked(false);
+    }
 
-	private void stopTask() {
-		Log.d(TAG, "in stopTask(), cancel AsyncTask");
-		mMsgLoggerTask.cancel(true);
-		SystemClock.sleep(100);
-		mMsgLoggerTask = null;
-	}
+    /* callback for starting the logger */
+    public void onStreamGo() {
+        setupCanSocket();
+        startTask();
+        Log.d(TAG, "isServiceRunning: " +
+                isServiceRunning(CandroidService.class));
+        startForegroundService();
+    }
 
-	private void startForegroundService() {
-		Intent startForegroundIntent = new Intent(
-				CandroidService.FOREGROUND_START);
-		startForegroundIntent.putExtra("save_option", mSaveFiltered);
-		startForegroundIntent.putExtra("filter_list", mFilters);
-		startForegroundIntent.setClass(
-				MainActivity.this, CandroidService.class);
-		startService(startForegroundIntent);
-	}
+    private boolean isServiceRunning(Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager)
+                getSystemService(Context.ACTIVITY_SERVICE);
+        for (RunningServiceInfo service :
+                manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-	private void stopForegroundService() {
-		Intent stopForegroundIntent = new Intent(
-				CandroidService.FOREGROUND_STOP);
-		stopForegroundIntent.setClass(
-				MainActivity.this, CandroidService.class);
-		stopService(stopForegroundIntent);
-	}
+    private void setupCanSocket() {
+        try {
+            mSocket = new CanSocketJ1939(CAN_INTERFACE);
+            mSocket.setPromisc();
+            mSocket.setTimestamp();
+            mSocket.setfilter(mFilters);
+        } catch (IOException e) {
+            Log.e(TAG, "socket creation on " + CAN_INTERFACE + " failed");
+        }
+    }
 
-	private void startAuthorize(String authorizationEndpoint,
-								String clientId, String redirectUris) {
+    private void closeCanSocket() {
+        if (mSocket != null) {
+            try {
+                mSocket.close();
+                mSocket = null;
+            } catch (IOException e) {
+                Log.e(TAG, "cannot close socket");
+            }
+        }
+    }
 
-		Uri authUri = Uri.parse(authorizationEndpoint)
-				.buildUpon()
-				.appendQueryParameter("response_type", "token")
-				.appendQueryParameter("client_id", clientId)
-						// TODO: randomize the state
-				.appendQueryParameter("state", "xyz")
-				.appendQueryParameter("redirect_uri", redirectUris)
-				.appendQueryParameter("scope", "all")
-				.build();
+    private void startTask() {
+        Log.d(TAG, "in startTask(), start AsyncTask");
+        mMsgLoggerTask = new MsgLoggerTask();
+        mMsgLoggerTask.execute(mSocket);
+    }
 
-		mAuthUrl = authUri.toString();
+    private void stopTask() {
+        Log.d(TAG, "in stopTask(), cancel AsyncTask");
+        mMsgLoggerTask.cancel(true);
+        SystemClock.sleep(100);
+        mMsgLoggerTask = null;
+    }
 
-		(new AsyncTask<Void, Void, String>() {
-			@Override
-			protected String doInBackground(Void... params) {
-				return null;
-			}
+    private void startForegroundService() {
+        Intent startForegroundIntent = new Intent(
+                CandroidService.FOREGROUND_START);
+        startForegroundIntent.putExtra("save_option", mSaveFiltered);
+        startForegroundIntent.putExtra("filter_list", mFilters);
+        startForegroundIntent.setClass(
+                MainActivity.this, CandroidService.class);
+        startService(startForegroundIntent);
+    }
 
-			@Override
-			protected void onPostExecute(String url) {
-				url = mAuthUrl;
-				mWebView.loadUrl(url);
-			}
-		}).execute();
-	}
+    private void stopForegroundService() {
+        Intent stopForegroundIntent = new Intent(
+                CandroidService.FOREGROUND_STOP);
+        stopForegroundIntent.setClass(
+                MainActivity.this, CandroidService.class);
+        stopService(stopForegroundIntent);
+    }
 
-	private WebViewClient mWebViewClient = new WebViewClient() {
-		@Override
-		public boolean shouldOverrideUrlLoading(WebView view, String url) {
-			if ((url != null) && (url.contains(mReg.mRedirectUris[0]))) {
-				mWebView.stopLoading();
-				mWebView.setVisibility(View.INVISIBLE); // Hide webview if necessary
-				mOADAToken = new OADAAccessToken(url);
-				// TODO: should throw some error for mismatched state
-				if (mOADAToken.isStateValid("xyz")) {
-					Log.i(TAG, "token is valid");
-					Log.i(TAG, "token: " + mOADAToken.mAccessToken);
-				} else {
-					Log.e(TAG, "state mismatch, token is invalid");
-				}
-				return false;
-			}
-			return true;
-		}
-	};
+    private class MsgLoggerTask extends AsyncTask
+            <CanSocketJ1939, J1939Message, Void> {
+        @Override
+        protected Void doInBackground(CanSocketJ1939... socket) {
+            try {
+                while (!isCancelled()) {
+                    if (socket[0] != null) {
+                        if (socket[0].select(1) == 0) {
+                            mMsg = socket[0].recvMsg();
+                            publishProgress(mMsg);
+                        }
+                        if (isCancelled()) {
+                            break;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
-	private class MsgLoggerTask extends AsyncTask
-			<CanSocketJ1939, J1939Message, Void> {
-		@Override
-		protected Void doInBackground(CanSocketJ1939... socket) {
-			try {
-				while (!isCancelled()) {
-					if (socket[0] != null) {
-						if (socket[0].select(1) == 0) {
-							mMsg = socket[0].recvMsg();
-							publishProgress(mMsg);
-						}
-						if (isCancelled()) {
-							break;
-						}
-					}
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
+            return null;
+        }
 
-			return null;
-		}
+        protected void onProgressUpdate(J1939Message... msg) {
+            mLog.add(msg[0].toString());
+        }
 
-		protected void onProgressUpdate(J1939Message... msg) {
-			mLog.add(msg[0].toString());
-			mQueue.add(new MessagePostRequest(mOADAToken.mAccessToken,
-					mConfig.mOadaBaseUri + "bookmarks/candroid",
-					msg[0].toString()));
-		}
-
-		protected void onPostExecute(Void Result) {
-			// Do nothing
-		}
-	}
+        protected void onPostExecute(Void Result) {
+            // Do nothing
+        }
+    }
 }
