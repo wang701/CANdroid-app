@@ -20,6 +20,8 @@ import com.android.volley.toolbox.Volley;
 
 import org.apache.commons.lang3.RandomStringUtils;
 
+import java.io.Serializable;
+
 import static android.widget.Toast.LENGTH_SHORT;
 
 public class OADAWebViewFragment extends WebViewFragment {
@@ -78,7 +80,6 @@ public class OADAWebViewFragment extends WebViewFragment {
                 }
 
                 if ((url != null) && (url.contains(mReg.mRedirectUris[0]))) {
-
                     mWebView.setVisibility(View.INVISIBLE);
                     mOADAToken = new OADAAccessToken(url);
                     if (mOADAToken.isStateValid(mRandState)) {
@@ -102,6 +103,18 @@ public class OADAWebViewFragment extends WebViewFragment {
 
         return view;
 
+    }
+
+    public OADAConfiguration getConfig() {
+        return mConfig;
+    }
+
+    public OADARegistration getReg() {
+        return mReg;
+    }
+
+    public OADAAccessToken getToken() {
+        return mOADAToken;
     }
 
     public void getAccessToken(String domain, Context context,

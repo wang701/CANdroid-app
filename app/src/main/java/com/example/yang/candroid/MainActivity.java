@@ -44,7 +44,7 @@ public class MainActivity extends Activity {
     private ListView mMsgList;
     private ListView mFilterList;
 
-    private boolean mIsCandroidServiceRunning;
+    private boolean mIsCandroidLogServiceRunning;
     private boolean mSaveFiltered = false;
 
     public static Filter mFilter;
@@ -67,11 +67,25 @@ public class MainActivity extends Activity {
         initCandroid();
     }
 
+    public void initCandroid() {
+        Log.d(TAG, "initializing parameters in initCandroid()");
+        mLog = new MsgAdapter(this, 100);
+        mFilterItems = new MsgAdapter(this, 20);
+
+        mMsgList = (ListView) findViewById(R.id.msglist);
+        mFilterList = (ListView) findViewById(R.id.filterlist);
+        mMsgList.setAdapter(mLog);
+        mFilterList.setAdapter(mFilterItems);
+
+        mFilterDialog = new FilterDialogFragment();
+        mWarningDialog = new WarningDialogFragment();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
         registerReceiver(broadcastReceiver,
-                new IntentFilter(CandroidService.BROADCAST_ACTION));
+                new IntentFilter(CandroidLogService.BROADCAST_ACTION));
     }
 
     @Override
@@ -113,10 +127,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onStart() {
         Log.d(TAG, "in onStart()");
-        if (isServiceRunning(CandroidService.class)) {
+        if (isServiceRunning(CandroidLogService.class)) {
             ToggleButton b = (ToggleButton) findViewById(R.id.streamToggle);
             b.setChecked(true);
-            onStreamGo();
+            onStartLogging();
         }
         super.onStart();
     }
@@ -151,7 +165,7 @@ public class MainActivity extends Activity {
         int id = item.getItemId();
         switch (id) {
             case R.id.add_filters:
-                if (isServiceRunning(CandroidService.class)) {
+                if (isServiceRunning(CandroidLogService.class)) {
                     mWarningDialog.mWarningMsg = msgFilter;
                     mWarningDialog.show(mFm, "warning");
                 } else {
@@ -159,7 +173,7 @@ public class MainActivity extends Activity {
                 }
                 return true;
             case R.id.save_option:
-                if (isServiceRunning(CandroidService.class)) {
+                if (isServiceRunning(CandroidLogService.class)) {
                     mWarningDialog.mWarningMsg = msgLogOpt;
                     mWarningDialog.show(mFm, "warning");
                 }
@@ -183,6 +197,8 @@ public class MainActivity extends Activity {
                     Toast.makeText(this, "No file manager app found",
                             Toast.LENGTH_LONG).show();
                 }
+            case R.id.upload_to_cloud:
+                startOAuthFlow();
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -192,11 +208,11 @@ public class MainActivity extends Activity {
     public void toggleListener(View view) throws IOException {
         ToggleButton b = (ToggleButton) view;
         if (b.isChecked()) {
-            onStreamGo();
+            onStartLogging();
         } else {
-            mIsCandroidServiceRunning =
-                    isServiceRunning(CandroidService.class);
-            if (mIsCandroidServiceRunning) {
+            mIsCandroidLogServiceRunning =
+                    isServiceRunning(CandroidLogService.class);
+            if (mIsCandroidLogServiceRunning) {
                 mWarningDialog.mWarningMsg = msgStop;
                 mWarningDialog.show(mFm, "warning");
             }
@@ -226,63 +242,30 @@ public class MainActivity extends Activity {
         }
     }
 
-    public void initCandroid() {
-        Log.d(TAG, "initializing parameters in initCandroid()");
-        mLog = new MsgAdapter(this, 100);
-        mFilterItems = new MsgAdapter(this, 20);
-        mMsgList = (ListView) findViewById(R.id.msglist);
-        mFilterList = (ListView) findViewById(R.id.filterlist);
-        mMsgList.setAdapter(mLog);
-        mFilterList.setAdapter(mFilterItems);
-
-        mFilterDialog = new FilterDialogFragment();
-        mWarningDialog = new WarningDialogFragment();
-        mOAuthFragment = new OADAWebViewFragment();
-
-        FragmentTransaction fragmentTransaction = mFm.beginTransaction();
-        fragmentTransaction.add(R.id.OADAFragment, mOAuthFragment);
-        fragmentTransaction.commit();
-
-        Context context = mFm.findFragmentById(R.id.OADAFragment).getActivity
-                ().getApplicationContext();
-
-        mOAuthFragment.getAccessToken("vip4.ecn.purdue.edu", context,
-                new OADAWebViewFragment.Listener<OADAAccessToken>() {
-                    @Override
-                    public void onResponse(OADAAccessToken response) {
-                        // Start OADA service with response.mAccessToken
-                    }
-                },
-                new OADAWebViewFragment.Listener<OADAError>() {
-                    @Override
-                    public void onResponse(OADAError response) {
-                        // Show error and suck it up
-                    }
-                });
-    }
-
     /* callback for adding new filters */
     public void onAddNewFilter() {
-        onStreamStop();
+        onStopLogging();
         mFilterItems.clear();
     }
 
     /* callback for stop everything */
-    public void onStreamStop() {
+    public void onStopLogging() {
         stopTask();
         closeCanSocket();
-        stopCandroidService();
+        stopLogService();
+        stopCloudService();
         ToggleButton b = (ToggleButton) findViewById(R.id.streamToggle);
         b.setChecked(false);
     }
 
     /* callback for starting the logger */
-    public void onStreamGo() {
+    public void onStartLogging() {
         setupCanSocket();
         startTask();
         Log.d(TAG, "isServiceRunning: " +
-                isServiceRunning(CandroidService.class));
-        startCandroidService();
+                isServiceRunning(CandroidLogService.class));
+        startLogService();
+
     }
 
     private boolean isServiceRunning(Class<?> serviceClass) {
@@ -332,22 +315,58 @@ public class MainActivity extends Activity {
         mMsgLoggerTask = null;
     }
 
-    private void startCandroidService() {
-        Intent startForegroundIntent = new Intent(
-                CandroidService.FOREGROUND_START);
-        startForegroundIntent.putExtra("save_option", mSaveFiltered);
-        startForegroundIntent.putExtra("filter_list", mFilters);
-        startForegroundIntent.setClass(
-                MainActivity.this, CandroidService.class);
-        startService(startForegroundIntent);
+    private void startLogService() {
+        Intent intent = new Intent(CandroidLogService.FOREGROUND_START);
+        intent.putExtra("save_option", mSaveFiltered);
+        intent.putExtra("filter_list", mFilters);
+        intent.setClass(MainActivity.this, CandroidLogService.class);
+        startService(intent);
     }
 
-    private void stopCandroidService() {
-        Intent stopForegroundIntent = new Intent(
-                CandroidService.FOREGROUND_STOP);
-        stopForegroundIntent.setClass(
-                MainActivity.this, CandroidService.class);
-        stopService(stopForegroundIntent);
+    private void stopLogService() {
+        Intent intent = new Intent(CandroidLogService.FOREGROUND_STOP);
+        intent.setClass(MainActivity.this, CandroidLogService.class);
+        stopService(intent);
+    }
+
+    private void startCloudService(OADAConfiguration config,
+                                   OADAAccessToken token) {
+        Intent intent = new Intent(CandroidCloudService.FOREGROUND_START);
+        CandroidCloudService.mConfig = config;
+        CandroidCloudService.mToken = token;
+        intent.setClass(MainActivity.this, CandroidCloudService.class);
+        startService(intent);
+    }
+
+    private void stopCloudService() {
+        Intent intent = new Intent(CandroidCloudService.FOREGROUND_STOP);
+        intent.setClass(MainActivity.this, CandroidCloudService.class);
+        stopService(intent);
+    }
+
+    public void startOAuthFlow() {
+        mOAuthFragment = new OADAWebViewFragment();
+
+        FragmentTransaction fragmentTransaction = mFm.beginTransaction();
+        fragmentTransaction.add(R.id.OADAFragment, mOAuthFragment);
+        fragmentTransaction.commit();
+
+        Context context = mFm.findFragmentById(R.id.OADAFragment).getActivity
+                ().getApplicationContext();
+
+        mOAuthFragment.getAccessToken("vip4.ecn.purdue.edu", context,
+                new OADAWebViewFragment.Listener<OADAAccessToken>() {
+                    @Override
+                    public void onResponse(OADAAccessToken response) {
+                        startCloudService(mOAuthFragment.getConfig(), response);
+                    }
+                },
+                new OADAWebViewFragment.Listener<OADAError>() {
+                    @Override
+                    public void onResponse(OADAError response) {
+                        // Show error and suck it up
+                    }
+                });
     }
 
     private class MsgLoggerTask extends AsyncTask

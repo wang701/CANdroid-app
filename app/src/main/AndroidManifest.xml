@@ -24,8 +24,11 @@
             </intent-filter>
         </activity>
 		<service
-			android:name=".CandroidService" >
+			android:name=".CandroidLogService" >
 		</service>
+        <service
+            android:name=".CandroidCloudService" >
+        </service>
     </application>
 
 </manifest>

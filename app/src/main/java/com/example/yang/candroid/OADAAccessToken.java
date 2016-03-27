@@ -3,6 +3,8 @@ package com.example.yang.candroid;
 import android.net.Uri;
 import android.util.Log;
 
+import java.io.Serializable;
+
 public class OADAAccessToken {
 
 	public String mAccessToken;

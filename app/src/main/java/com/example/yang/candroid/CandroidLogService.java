@@ -20,17 +20,19 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 
-public class CandroidService extends Service {
+public class CandroidLogService extends Service {
 
 	public static final String FOREGROUND_STOP =
-		"com.example.yang.candroid.CandroidService.FOREGROUND.stop";
+		"com.example.yang.candroid.CandroidLogService.FOREGROUND.stop";
 	public static final String FOREGROUND_START =
-		"com.example.yang.candroid.CandroidService.FOREGROUND.start";
+		"com.example.yang.candroid.CandroidLogService.FOREGROUND.start";
 	public static final String BROADCAST_ACTION =
-		"com.example.yang.candroid.CandroidService.broadcast";
+		"com.example.yang.candroid.CandroidLogService.broadcast";
+
 	public static final int NOTIFICATION_ID = 101;
-	private static final String TAG = "CandroidService";
+	private static final String TAG = "CandroidLogService";
 	private static final String CAN_INTERFACE = "can0";
+
 	private CanSocketJ1939 mSocket;
 	private ArrayList<Filter> mFilters = new ArrayList<Filter>();
 	private boolean mSaveFiltered = false;
@@ -58,11 +60,12 @@ public class CandroidService extends Service {
 			mThread = null;
 		}
 		super.onDestroy();
-		Log.d(TAG, "in onDestroy(), destroy " + TAG);
+		Log.d(TAG, "destroy " + TAG);
 	}
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
+
 		postOldData();
 		if (mSocket == null) {
 			if (FOREGROUND_START.equals(intent.getAction())) {
