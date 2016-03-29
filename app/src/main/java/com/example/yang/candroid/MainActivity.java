@@ -6,28 +6,28 @@ import android.app.ActivityManager.RunningServiceInfo;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.content.BroadcastReceiver;
-import android.content.Intent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ListView;
-import android.util.Log;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import org.isoblue.can.CanSocketJ1939;
+import org.isoblue.can.CanSocketJ1939.Filter;
+import org.isoblue.can.CanSocketJ1939.J1939Message;
+
 import java.io.IOException;
 import java.util.ArrayList;
-
-import org.isoblue.can.CanSocketJ1939;
-import org.isoblue.can.CanSocketJ1939.J1939Message;
-import org.isoblue.can.CanSocketJ1939.Filter;
 
 public class MainActivity extends Activity {
 
@@ -199,6 +199,11 @@ public class MainActivity extends Activity {
                 }
             case R.id.upload_to_cloud:
                 startOAuthFlow();
+                if (item.isChecked()) {
+                    item.setChecked(false);
+                } else {
+                    item.setChecked(true);
+                }
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -265,7 +270,8 @@ public class MainActivity extends Activity {
         Log.d(TAG, "isServiceRunning: " +
                 isServiceRunning(CandroidLogService.class));
         startLogService();
-
+        startCloudService(mOAuthFragment.getConfig(),
+                mOAuthFragment.getToken());
     }
 
     private boolean isServiceRunning(Class<?> serviceClass) {
@@ -358,7 +364,7 @@ public class MainActivity extends Activity {
                 new OADAWebViewFragment.Listener<OADAAccessToken>() {
                     @Override
                     public void onResponse(OADAAccessToken response) {
-                        startCloudService(mOAuthFragment.getConfig(), response);
+
                     }
                 },
                 new OADAWebViewFragment.Listener<OADAError>() {

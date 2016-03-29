@@ -11,43 +11,39 @@ import org.json.JSONObject;
 
 public class ConfigGetRequest extends JsonObjectRequest {
 
-	private static final String TAG = "ConfigGetRequest";
-	private Response.Listener<OADAConfiguration> mListener;
+    private static final String TAG = "ConfigGetRequest";
+    private Response.Listener<OADAConfiguration> mListener;
 
-	public ConfigGetRequest(String domain,
-		Response.Listener<OADAConfiguration> listener) {
-		super(Method.GET, "https://"
-			+ domain
-			+ ":3000/.well-known/oada-configuration", null,
-			new ErrorListener());
-		mListener = listener;
-	}
+    public ConfigGetRequest(String domain,
+                            Response.Listener<OADAConfiguration> listener) {
+        super(Method.GET, "https://" + domain + ":3000/.well-known/oada-configuration", null,
+            new ErrorListener());
+        mListener = listener;
+    }
 
-	@Override
-	protected Response<JSONObject> parseNetworkResponse(
-		NetworkResponse response) {
+    @Override
+    protected Response<JSONObject> parseNetworkResponse(
+            NetworkResponse response) {
 
-		Response<JSONObject> JSONResponse =
-			super.parseNetworkResponse(response);
+        Response<JSONObject> JSONResponse = super.parseNetworkResponse(response);
 
-		return JSONResponse;
-	}
+        return JSONResponse;
+    }
 
-	@Override
-	protected void deliverResponse(JSONObject response) {
-		try {
-			mListener.onResponse(
-					new OADAConfiguration(response));
-		} catch (JSONException e) {
-			e.printStackTrace();
-		}
-	}
+    @Override
+    protected void deliverResponse(JSONObject response) {
+        try {
+            mListener.onResponse(new OADAConfiguration(response));
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
 
-	private static class ErrorListener implements Response.ErrorListener {
+    private static class ErrorListener implements Response.ErrorListener {
 
-		@Override
-		public void onErrorResponse(VolleyError error) {
-			VolleyLog.d("Error: " + error.getMessage());
-		}
-	}
+        @Override
+        public void onErrorResponse(VolleyError error) {
+            VolleyLog.d("Error: " + error.getMessage());
+        }
+    }
 }

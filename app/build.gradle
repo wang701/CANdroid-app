@@ -32,10 +32,11 @@ dependencies {
     compile 'com.android.support:support-v4:23.1.1'
 	compile 'com.mcxiaoke.volley:library:1.0.19'
     compile 'org.apache.commons:commons-lang3:3.1'
+//    compile 'org.apache.kafka:kafka_2.10:0.9.0.1'
 }
 
 task appStart(type: Exec, dependsOn: 'installDebug') {
 	commandLine 'adb', 'shell', 'am', 'start', '-n',
 	'com.example.yang.candroid/com.example.yang.candroid.MainActivity',
-	'-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.LAUNCHE'
+	'-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.LAUNCHER'
 }

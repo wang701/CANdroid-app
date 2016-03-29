@@ -1,6 +1,5 @@
 package com.example.yang.candroid;
 
-import android.app.Activity;
 import android.content.Context;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -19,8 +18,6 @@ import com.android.volley.Response;
 import com.android.volley.toolbox.Volley;
 
 import org.apache.commons.lang3.RandomStringUtils;
-
-import java.io.Serializable;
 
 import static android.widget.Toast.LENGTH_SHORT;
 
