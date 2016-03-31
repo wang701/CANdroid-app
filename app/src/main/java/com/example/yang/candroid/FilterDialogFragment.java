@@ -26,12 +26,12 @@ public class FilterDialogFragment extends DialogFragment {
 	private int mPgnVal;
 
     private static final String TAG = "FilterDialog";
-    private static final String dTitle = "Please Add Filters";
+    private static final String dTitle = "Please Add Filters (values in decimal)";
     private static final String dMsg = "Press 'Cancel' to skip adding filters ";
 
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
-        
+
 		LayoutInflater inflater = getActivity().getLayoutInflater();
         final View dView = inflater.inflate(R.layout.dialog_startup, null);
         mName = (EditText) dView.findViewById(R.id.filter_name);
@@ -52,7 +52,7 @@ public class FilterDialogFragment extends DialogFragment {
                 .create();
 
         d.setOnShowListener(new DialogInterface.OnShowListener() {
-            
+
 			@Override
             public void onShow(DialogInterface dialog) {
                 Button b = d.getButton(AlertDialog.BUTTON_POSITIVE);
@@ -62,18 +62,16 @@ public class FilterDialogFragment extends DialogFragment {
                         if (parseParams(mName.getText().toString(),
                                 mAddr.getText().toString(),
                                 mPgn.getText().toString()) == -1) {
-                            Toast.makeText(getActivity(), "filter not added",
+                            Toast.makeText(getActivity(), "Filter not added",
                                     Toast.LENGTH_SHORT).show();
                         } else {
                             MainActivity.mFilter = new Filter(mSrcNameVal, mSrcAddrVal, mPgnVal);
                             MainActivity.mFilters.add(MainActivity.mFilter);
                             MainActivity.mFilterItems.add(
-                                    "Filtering on" + MainActivity.mFilter
-                                            .toString());
-                            Log.d(TAG, "add filter: "
-                                    + MainActivity.mFilter.toString());
-                            Toast.makeText(getActivity(), "filter added",
-                                    Toast.LENGTH_SHORT).show();
+                                    "Filtering on " + MainActivity.mFilter.toString());
+                            Log.d(TAG, "add filter: " + MainActivity.mFilter.toString());
+                            Toast.makeText(getActivity(), "Filter added",
+								Toast.LENGTH_SHORT).show();
                         }
                     }
                 });
@@ -85,23 +83,23 @@ public class FilterDialogFragment extends DialogFragment {
     public int parseParams(String name, String addr, String pgn) {
 
 		if (name.isEmpty() && addr.isEmpty() && pgn.isEmpty()) {
-			
+
             Toast.makeText(getActivity(), "Please input at least one parameter",
                     Toast.LENGTH_SHORT).show();
 			return -1;
 		}
 
-        mSrcNameVal = name.isEmpty() ? -1 : Integer.parseLong(name);
+        mSrcNameVal = name.isEmpty() ? -1 : Long.parseLong(name);
         mSrcAddrVal = addr.isEmpty() ? -1 : Integer.parseInt(addr);
-        mPgnVal = pgn.isEmpty() ? -1 : Integer.parseInt(pgn);
+        mPgnVal = pgn.isEmpty() ?  -1: Integer.parseInt(pgn);
 
-        if (addrInt >= 255) {
-            Toast.makeText(getActivity(), "Please input Source Adress range from 0 - 254",
+        if (mSrcAddrVal > 254) {
+            Toast.makeText(getActivity(), "Please input Source Adress range from 0 to 254",
                     Toast.LENGTH_SHORT).show();
             return -1;
         }
-        if (pgnInt > 262143) {
-            Toast.makeText(getActivity(), "Please input PGN range from 0 - 262143",
+        if (mPgnVal > 262143) {
+            Toast.makeText(getActivity(), "Please input PGN range from 0 to 262143",
                     Toast.LENGTH_SHORT).show();
             return -1;
         }

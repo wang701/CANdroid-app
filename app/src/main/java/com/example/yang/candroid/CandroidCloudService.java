@@ -6,6 +6,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -38,22 +39,30 @@ public class CandroidCloudService extends Service {
             "com.example.yang.candroid.CandroidCloudService.FOREGROUND.stop";
     public static final String FOREGROUND_START =
             "com.example.yang.candroid.CandroidCloudService.FOREGROUND.start";
+    public static final String BROADCAST_ACTION =
+            "com.example.yang.candroid.CandroidCloudService.broadcast";
+
     public static final int NOTIFICATION_ID = 102;
     public static final String CAN_INTERFACE = "can0";
     public static OADAConfiguration mConfig;
     public static OADAAccessToken mToken;
     public static String tmpFile = "tmp.txt";
     public static int i = 0;
-    private static String TAG = "CandroidCloudService";
+
     public CanSocketJ1939 mSocket;
     public J1939Message mMsg;
     public Handler msgHandler;
     public recvThread mThread;
     public RequestQueue mQueue;
-    public int timehash7;
-    public int timehash3;
     public String mResUrl;
 	public MsgAdapter mMsgBuffer;
+    public Intent bcIntent;
+
+    public int timehash7;
+    public int timehash3;
+	public boolean mSaveToCloud;
+
+    private static String TAG = "CandroidCloudService";
 
     @Override
     public void onCreate() {
@@ -85,6 +94,7 @@ public class CandroidCloudService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
+        postOldData();
         if (mSocket == null) {
             if (FOREGROUND_START.equals(intent.getAction())) {
                 Log.i(TAG, "in onStartCommmand(), start " + TAG);
@@ -100,9 +110,12 @@ public class CandroidCloudService extends Service {
             };
 
             setupCanSocket();
+
             mQueue = Volley.newRequestQueue(getApplicationContext());
 
             mMsgBuffer = new MsgAdapter(1000 * 60 * 60);
+
+            mSaveToCloud = intent.getExtras().getBoolean("save_to_cloud");
 
             mThread = new recvThread();
             mThread.start();
@@ -162,6 +175,16 @@ public class CandroidCloudService extends Service {
                 Log.e(TAG, "cannot close socket");
             }
         }
+    }
+
+    public void postOldData() {
+
+        Log.d(TAG, "in postOldData()");
+        bcIntent = new Intent(BROADCAST_ACTION);
+        Bundle b = new Bundle();
+        b.putBoolean("save_to_cloud", mSaveToCloud);
+        bcIntent.putExtra("cloudServiceBundle", b);
+        sendBroadcast(bcIntent);
     }
 
  /*   public void writeToBufferFile(MsgAdapter msgArray) {

@@ -97,7 +97,7 @@ public class CandroidLogService extends Service {
         Bundle b = new Bundle();
         b.putBoolean("saveOption", mSaveFiltered);
         b.putSerializable("filters", mFilters);
-        bcIntent.putExtra("serviceBundle", b);
+        bcIntent.putExtra("logServiceBundle", b);
         sendBroadcast(bcIntent);
     }
 
@@ -107,7 +107,7 @@ public class CandroidLogService extends Service {
             mSocket.setPromisc();
             mSocket.setTimestamp();
             if (mSaveFiltered) {
-                mSocket.setfilter(mFilters);
+                mSocket.setJ1939Filter(mFilters);
             }
         } catch (IOException e) {
             Log.e(TAG, "socket creation on " + CAN_INTERFACE + " failed");
