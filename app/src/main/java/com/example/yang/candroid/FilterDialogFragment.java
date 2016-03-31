@@ -16,16 +16,23 @@ import android.widget.Toast;
 import org.isoblue.can.CanSocketJ1939.Filter;
 
 public class FilterDialogFragment extends DialogFragment {
+
     private TextView mName;
     private TextView mAddr;
     private TextView mPgn;
+
+	private long mSrcNameVal;
+	private int mSrcAddrVal;
+	private int mPgnVal;
+
     private static final String TAG = "FilterDialog";
     private static final String dTitle = "Please Add Filters";
     private static final String dMsg = "Press 'Cancel' to skip adding filters ";
 
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
-        LayoutInflater inflater = getActivity().getLayoutInflater();
+        
+		LayoutInflater inflater = getActivity().getLayoutInflater();
         final View dView = inflater.inflate(R.layout.dialog_startup, null);
         mName = (EditText) dView.findViewById(R.id.filter_name);
         mAddr = (EditText) dView.findViewById(R.id.filter_addr);
@@ -45,25 +52,20 @@ public class FilterDialogFragment extends DialogFragment {
                 .create();
 
         d.setOnShowListener(new DialogInterface.OnShowListener() {
-            @Override
+            
+			@Override
             public void onShow(DialogInterface dialog) {
                 Button b = d.getButton(AlertDialog.BUTTON_POSITIVE);
                 b.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-                        if (paramsCheck(mName.getText().toString(),
+                        if (parseParams(mName.getText().toString(),
                                 mAddr.getText().toString(),
                                 mPgn.getText().toString()) == -1) {
                             Toast.makeText(getActivity(), "filter not added",
                                     Toast.LENGTH_SHORT).show();
                         } else {
-                            long name = Long.parseLong(mName.getText()
-                                    .toString());
-                            int addr = Integer.parseInt(mAddr.getText()
-                                    .toString());
-                            int pgn = Integer.parseInt(mPgn.getText()
-                                    .toString());
-                            MainActivity.mFilter = new Filter(name, addr, pgn);
+                            MainActivity.mFilter = new Filter(mSrcNameVal, mSrcAddrVal, mPgnVal);
                             MainActivity.mFilters.add(MainActivity.mFilter);
                             MainActivity.mFilterItems.add(
                                     "Filtering on" + MainActivity.mFilter
@@ -80,25 +82,30 @@ public class FilterDialogFragment extends DialogFragment {
         return d;
     }
 
-    public int paramsCheck(String name, String addr, String pgn) {
-        if (name.isEmpty() || addr.isEmpty() || pgn.isEmpty()) {
-            Toast.makeText(getActivity(), "field(s) cannot"
-                            + " be empty",
+    public int parseParams(String name, String addr, String pgn) {
+
+		if (name.isEmpty() && addr.isEmpty() && pgn.isEmpty()) {
+			
+            Toast.makeText(getActivity(), "Please input at least one parameter",
                     Toast.LENGTH_SHORT).show();
-            return -1;
-        }
-        int addrInt = Integer.parseInt(addr);
-        int pgnInt = Integer.parseInt(pgn);
-        if (addrInt >= 256) {
-            Toast.makeText(getActivity(), "addr should be less than 0xFF",
+			return -1;
+		}
+
+        mSrcNameVal = name.isEmpty() ? -1 : Integer.parseLong(name);
+        mSrcAddrVal = addr.isEmpty() ? -1 : Integer.parseInt(addr);
+        mPgnVal = pgn.isEmpty() ? -1 : Integer.parseInt(pgn);
+
+        if (addrInt >= 255) {
+            Toast.makeText(getActivity(), "Please input Source Adress range from 0 - 254",
                     Toast.LENGTH_SHORT).show();
             return -1;
         }
         if (pgnInt > 262143) {
-            Toast.makeText(getActivity(), "pgn should be less than 0x3FFFF",
+            Toast.makeText(getActivity(), "Please input PGN range from 0 - 262143",
                     Toast.LENGTH_SHORT).show();
             return -1;
         }
+
         return 0;
     }
 }
