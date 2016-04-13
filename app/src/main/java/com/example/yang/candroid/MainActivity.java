@@ -22,7 +22,6 @@ import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import com.android.volley.RequestQueue;
-import com.android.volley.toolbox.Volley;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -32,8 +31,10 @@ import org.isoblue.can.CanSocketJ1939.J1939Message;
 import org.isoblue.can.CanSocketJ1939.Filter;
 
 public class MainActivity extends Activity {
-	private CanSocketJ1939 mSocket;
-	private J1939Message mMsg;
+	private CanSocketJ1939 mCan0Socket;
+    private CanSocketJ1939 mCan1Socket;
+	private J1939Message mCan0Msg;
+    private J1939Message mCan1Msg;
 	private MsgLoggerTask mMsgLoggerTask;
 	private MsgAdapter mLog;
 	private FilterDialogFragment mFilterDialog;
@@ -47,7 +48,8 @@ public class MainActivity extends Activity {
 	public static Filter mFilter;
 	public static MsgAdapter mFilterItems;
 	public static ArrayList<Filter> mFilters = new ArrayList<Filter>();
-	private static final String CAN_INTERFACE = "can0";
+	private static final String CAN0 = "can0";
+    private static final String CAN1 = "can1";
 	private static final String TAG = "CandroidActivity";
 	private static final String msgFilter = "Adding new filter(s) will stop " +
 		"current logging, do you wish to continue?";
@@ -68,7 +70,7 @@ public class MainActivity extends Activity {
 	protected void onResume() {
 		super.onResume();
 		registerReceiver(broadcastReceiver,
-				new IntentFilter(CandroidService.BROADCAST_ACTION));
+                new IntentFilter(CandroidService.BROADCAST_ACTION));
 	}
 
 	@Override
@@ -92,7 +94,7 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onDestroy() {
 		Log.d(TAG, "in onDestroy()");
-		if (mMsgLoggerTask != null && mSocket != null) {
+		if (mMsgLoggerTask != null && mCan0Socket != null) {
 			stopTask();
 			closeCanSocket();
 			Log.d(TAG, "socket closed, task stopped");
@@ -121,7 +123,7 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onStop() {
 		Log.d(TAG, "in onStop()");
-		if (mMsgLoggerTask != null && mSocket != null) {
+		if (mMsgLoggerTask != null && mCan0Socket != null) {
 			stopTask();
 			closeCanSocket();
 			Log.d(TAG, "socket closed, task stopped");
@@ -232,7 +234,7 @@ public class MainActivity extends Activity {
 		mFilterList.setAdapter(mFilterItems);
 		mFilterDialog = new FilterDialogFragment();
 		mWarningDialog = new WarningDialogFragment();
-		mQueue = Volley.newRequestQueue(getApplicationContext());
+//		mQueue = Volley.newRequestQueue(getApplicationContext());
 	}
 
 	/* callback for adding new filters */
@@ -252,7 +254,7 @@ public class MainActivity extends Activity {
 
 	/* callback for starting the logger */
 	public void onStreamGo() {
-		mQueue.add(new ConfigGetRequest());
+//		mQueue.add(new ConfigGetRequest());
 		setupCanSocket();
 		startTask();
 		Log.d(TAG, "isServiceRunning: " +
@@ -274,30 +276,43 @@ public class MainActivity extends Activity {
 
 	private void setupCanSocket() {
 		try {
-			mSocket = new CanSocketJ1939(CAN_INTERFACE);
-			mSocket.setPromisc();
-			mSocket.setTimestamp();
-			mSocket.setfilter(mFilters);
+			mCan0Socket = new CanSocketJ1939(CAN0);
+			mCan0Socket.setPromisc();
+			mCan0Socket.setTimestamp();
+			mCan0Socket.setJ1939Filter(mFilters);
+            mCan1Socket = new CanSocketJ1939(CAN1);
+            mCan1Socket.setPromisc();
+            mCan1Socket.setTimestamp();
+            mCan1Socket.setJ1939Filter(mFilters);
 		} catch (IOException e) {
-			Log.e(TAG, "socket creation on " + CAN_INTERFACE + " failed");
+			Log.e(TAG, "socket creation on " + CAN1 + " failed");
 		}
 	}
 
 	private void closeCanSocket() {
-		if (mSocket != null) {
+		if (mCan0Socket != null) {
 			try {
-				mSocket.close();
-				mSocket = null;
+				mCan0Socket.close();
+				mCan0Socket = null;
 			} catch (IOException e) {
 				Log.e(TAG, "cannot close socket");
 			}
 		}
+
+        if (mCan1Socket != null) {
+            try {
+                mCan1Socket.close();
+                mCan1Socket = null;
+            } catch (IOException e) {
+                Log.e(TAG, "cannot close socket");
+            }
+        }
 	}
 
 	private void startTask() {
 		Log.d(TAG, "in startTask(), start AsyncTask");
 		mMsgLoggerTask = new MsgLoggerTask();
-		mMsgLoggerTask.execute(mSocket);
+		mMsgLoggerTask.execute(mCan0Socket, mCan1Socket);
 	}
 
 	private void stopTask() {
@@ -331,12 +346,17 @@ public class MainActivity extends Activity {
         protected Void doInBackground(CanSocketJ1939... socket) {
             try {
                 while (!isCancelled()) {
-					if (socket[0] != null) {
+					if (socket[0] != null && socket[1] != null) {
 						if (socket[0].select(1) == 0) {
-							mMsg = socket[0].recvMsg();
-							publishProgress(mMsg);
-						}
-						if(isCancelled()){
+							mCan0Msg = socket[0].recvMsg();
+                            publishProgress(mCan0Msg);
+                        }
+                        if (socket[1].select(1) == 0) {
+                            mCan1Msg = socket[1].recvMsg();
+                            publishProgress(mCan1Msg);
+
+                        }
+                        if(isCancelled()){
 							break;
 						}
 					}
