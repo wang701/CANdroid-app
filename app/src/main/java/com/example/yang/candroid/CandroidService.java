@@ -214,7 +214,7 @@ public class CandroidService extends Service {
 			if (recvThread != null) {
 				recvThread.interrupt();
 			}
-            SystemClock.sleep(100);
+            SystemClock.sleep(1000);
             try {
 				if (mOsw != null) {
 					mOsw.close();

@@ -70,7 +70,7 @@ public class MainActivity extends Activity {
 	protected void onResume() {
 		super.onResume();
 		registerReceiver(broadcastReceiver,
-                new IntentFilter(CandroidService.BROADCAST_ACTION));
+				new IntentFilter(CandroidService.BROADCAST_ACTION));
 	}
 
 	@Override
@@ -255,11 +255,23 @@ public class MainActivity extends Activity {
 	/* callback for starting the logger */
 	public void onStreamGo() {
 //		mQueue.add(new ConfigGetRequest());
-		setupCanSocket();
-		startTask();
-		Log.d(TAG, "isServiceRunning: " +
-				isServiceRunning(CandroidService.class));
-		startForegroundService();
+		boolean canUp;
+		try {
+			Process p = Runtime.getRuntime().exec("su -c canup");
+			canUp = true;
+		} catch (IOException e) {
+			Toast.makeText(this, "canup failed", Toast.LENGTH_SHORT).show();
+			ToggleButton b = (ToggleButton) findViewById(R.id.streamToggle);
+			b.setChecked(false);
+			canUp = false;
+		}
+		if (canUp) {
+			setupCanSocket();
+			startTask();
+			Log.d(TAG, "isServiceRunning: " +
+					isServiceRunning(CandroidService.class));
+			startForegroundService();
+		}
 	}
 
 	private boolean isServiceRunning(Class<?> serviceClass) {
@@ -318,7 +330,7 @@ public class MainActivity extends Activity {
 	private void stopTask() {
 		Log.d(TAG, "in stopTask(), cancel AsyncTask");
 		mMsgLoggerTask.cancel(true);
-		SystemClock.sleep(100);
+		SystemClock.sleep(1000);
 		mMsgLoggerTask = null;
 	}
 
