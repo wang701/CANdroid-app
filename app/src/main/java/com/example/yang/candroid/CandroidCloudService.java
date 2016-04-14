@@ -3,12 +3,11 @@ package com.example.yang.candroid;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
-import android.net.ConnectivityManager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.os.SystemClock;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
@@ -25,12 +24,8 @@ import org.isoblue.can.CanSocketJ1939.J1939Message;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.net.UnknownHostException;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
 
 public class CandroidCloudService extends Service {
 
@@ -39,14 +34,17 @@ public class CandroidCloudService extends Service {
     public static final String FOREGROUND_START =
             "com.example.yang.candroid.CandroidCloudService.FOREGROUND.start";
     public static final int NOTIFICATION_ID = 102;
-    public static final String CAN_INTERFACE = "can0";
+    public static final String CAN0 = "can0";
+    public static final String CAN1 = "can1";
     public static OADAConfiguration mConfig;
     public static OADAAccessToken mToken;
     public static String tmpFile = "tmp.txt";
     public static int i = 0;
     private static String TAG = "CandroidCloudService";
-    public CanSocketJ1939 mSocket;
-    public J1939Message mMsg;
+    public CanSocketJ1939 mCan0Socket;
+    public CanSocketJ1939 mCan1Socket;
+    public J1939Message mCan0Msg;
+    public J1939Message mCan1Msg;
     public Handler msgHandler;
     public recvThread mThread;
     public RequestQueue mQueue;
@@ -85,7 +83,7 @@ public class CandroidCloudService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
-        if (mSocket == null) {
+        if (mCan0Socket == null && mCan1Socket == null) {
             if (FOREGROUND_START.equals(intent.getAction())) {
                 Log.i(TAG, "in onStartCommmand(), start " + TAG);
                 startForeground(NOTIFICATION_ID,
@@ -144,20 +142,37 @@ public class CandroidCloudService extends Service {
     public void setupCanSocket() {
 
         try {
-            mSocket = new CanSocketJ1939(CAN_INTERFACE);
-            mSocket.setPromisc();
-            mSocket.setTimestamp();
+            mCan0Socket = new CanSocketJ1939(CAN0);
+            mCan0Socket.setPromisc();
+            mCan0Socket.setTimestamp();
         } catch (IOException e) {
-            Log.e(TAG, "socket creation on " + CAN_INTERFACE + " failed");
+            Log.e(TAG, "socket creation on " + CAN0 + " failed");
+        }
+
+        try {
+            mCan1Socket = new CanSocketJ1939(CAN1);
+            mCan1Socket.setPromisc();
+            mCan1Socket.setTimestamp();
+        } catch (IOException e) {
+            Log.e(TAG, "socket creation on " + CAN1 + " failed");
         }
     }
 
     public void closeCanSocket() {
 
-        if (mSocket != null) {
+        if (mCan0Socket != null) {
             try {
-                mSocket.close();
-                mSocket = null;
+                mCan0Socket.close();
+                mCan0Socket = null;
+            } catch (IOException e) {
+                Log.e(TAG, "cannot close socket");
+            }
+        }
+
+        if (mCan1Socket != null) {
+            try {
+                mCan1Socket.close();
+                mCan1Socket = null;
             } catch (IOException e) {
                 Log.e(TAG, "cannot close socket");
             }
@@ -222,23 +237,44 @@ public class CandroidCloudService extends Service {
         public void run() {
             while (!recvThread.interrupted()) {
                 try {
-                    if (mSocket.select(1) == 0) {
-                        mMsg = mSocket.recvMsg();
+                    if (mCan0Socket != null && mCan1Socket != null) {
+                        if (mCan0Socket.select(1) == 0) {
+                            mCan0Msg = mCan0Socket.recvMsg();
 
-                        if (mQueue != null) {
+                            if (mQueue != null) {
 /*                            if (i == 1000 || i == 0) {
-                                mResUrl = buildResUrl(mMsg);
+                                mResUrl = buildResUrl(mCan0Msg);
                                 i = 0;
                             }
 */
-                            MessageRequest req = new MessageRequest(Request.Method.PUT, mConfig,
-																	mToken, mMsg.toString(),
-																	"bookmarks/candroid/",
-																	new ErrorListener(),
-																	new Listener());
+                                MessageRequest req = new MessageRequest(Request.Method.PUT, mConfig,
+                                        mToken, mCan0Msg.toString(),
+                                        "bookmarks/candroid/",
+                                        new ErrorListener(),
+                                        new Listener());
 //                          mResUrl);
-                            mQueue.add(req);
-                            i++;
+                                mQueue.add(req);
+                                i++;
+                            }
+                        }
+                        if (mCan1Socket.select(1) == 0) {
+                            mCan1Msg = mCan1Socket.recvMsg();
+
+                            if (mQueue != null) {
+/*                            if (i == 1000 || i == 0) {
+                                mResUrl = buildResUrl(mCan0Msg);
+                                i = 0;
+                            }
+*/
+                                MessageRequest req = new MessageRequest(Request.Method.PUT, mConfig,
+                                        mToken, mCan0Msg.toString(),
+                                        "bookmarks/candroid/",
+                                        new ErrorListener(),
+                                        new Listener());
+//                          mResUrl);
+                                mQueue.add(req);
+                                i++;
+                            }
                         }
                     } else {
                         msgHandler.sendEmptyMessage(0);
@@ -253,6 +289,7 @@ public class CandroidCloudService extends Service {
             if (recvThread != null) {
                 recvThread.interrupt();
             }
+            SystemClock.sleep(1000);
             closeCanSocket();
         }
     }
@@ -269,9 +306,12 @@ public class CandroidCloudService extends Service {
 			if (error.getCause() != null && error.getCause() instanceof
 					UnknownHostException) {
 				Log.d(TAG, "no internet connection");
-				if (mMsg != null) {
-					mMsgBuffer.add(mMsg.toString());
+				if (mCan0Msg != null) {
+					mMsgBuffer.add(mCan0Msg.toString());
 				}
+                if (mCan1Msg != null) {
+                    mMsgBuffer.add(mCan1Msg.toString());
+                }
 			}
 
 			/* this part should parse out error codes from server */
@@ -296,7 +336,7 @@ public class CandroidCloudService extends Service {
 
         @Override
         public void onResponse(NetworkResponse response) {
-			if ((!mMsgBuffer.isEmpty()) && (mMsg != null)) {
+			if ((!mMsgBuffer.isEmpty()) && (mCan0Msg != null)) {
 				for (int i = 0; i < mMsgBuffer.getCount(); i++) {
 					MessageRequest req = new MessageRequest(Request.Method.POST, mConfig, mToken,
 							makeJson(mMsgBuffer.getItem(i)).toString(), "bookmarks/candroid/",

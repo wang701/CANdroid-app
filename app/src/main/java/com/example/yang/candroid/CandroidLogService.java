@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.os.SystemClock;
 import android.support.v4.app.NotificationCompat.Builder;
 import android.util.Log;
 
@@ -31,12 +32,15 @@ public class CandroidLogService extends Service {
 
     public static final int NOTIFICATION_ID = 101;
     private static final String TAG = "CandroidLogService";
-    private static final String CAN_INTERFACE = "can0";
+    private static final String CAN0 = "can0";
+    private static final String CAN1 = "can1";
 
-    private CanSocketJ1939 mSocket;
+    private CanSocketJ1939 mCan0Socket;
+    private CanSocketJ1939 mCan1Socket;
     private ArrayList<Filter> mFilters = new ArrayList<Filter>();
     private boolean mSaveFiltered = false;
-    public J1939Message mMsg;
+    public J1939Message mCan0Msg;
+    public J1939Message mCan1Msg;
     private FileOutputStream mFos;
     private OutputStreamWriter mOsw;
     private Handler msgHandler;
@@ -67,7 +71,7 @@ public class CandroidLogService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
 
         postOldData();
-        if (mSocket == null) {
+        if (mCan0Socket == null && mCan1Socket == null) {
             if (FOREGROUND_START.equals(intent.getAction())) {
                 Log.i(TAG, "in onStartCommmand(), start " + TAG);
                 startForeground(NOTIFICATION_ID,
@@ -103,22 +107,42 @@ public class CandroidLogService extends Service {
 
     private void setupCanSocket() {
         try {
-            mSocket = new CanSocketJ1939(CAN_INTERFACE);
-            mSocket.setPromisc();
-            mSocket.setTimestamp();
+            mCan0Socket = new CanSocketJ1939(CAN0);
+            mCan0Socket.setPromisc();
+            mCan0Socket.setTimestamp();
             if (mSaveFiltered) {
-                mSocket.setfilter(mFilters);
+                mCan0Socket.setJ1939Filter(mFilters);
             }
         } catch (IOException e) {
-            Log.e(TAG, "socket creation on " + CAN_INTERFACE + " failed");
+            Log.e(TAG, "socket creation on " + CAN0 + " failed");
+        }
+
+        try {
+            mCan1Socket = new CanSocketJ1939(CAN1);
+            mCan1Socket.setPromisc();
+            mCan1Socket.setTimestamp();
+            if (mSaveFiltered) {
+                mCan1Socket.setJ1939Filter(mFilters);
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "socket creation on " + CAN1 + " failed");
         }
     }
 
     private void closeCanSocket() {
-        if (mSocket != null) {
+        if (mCan0Socket != null) {
             try {
-                mSocket.close();
-                mSocket = null;
+                mCan0Socket.close();
+                mCan0Socket = null;
+            } catch (IOException e) {
+                Log.e(TAG, "cannot close socket");
+            }
+        }
+
+        if (mCan1Socket != null) {
+            try {
+                mCan1Socket.close();
+                mCan1Socket = null;
             } catch (IOException e) {
                 Log.e(TAG, "cannot close socket");
             }
@@ -165,18 +189,31 @@ public class CandroidLogService extends Service {
         public void run() {
             while (!recvThread.interrupted()) {
                 try {
-                    if (mSocket.select(1) == 0) {
-                        mMsg = mSocket.recvMsg();
-                        if (mOsw == null) {
-                            createFile();
+                    if (mCan0Socket != null && mCan1Socket != null) {
+                        if (mCan0Socket.select(1) == 0) {
+                            mCan0Msg = mCan0Socket.recvMsg();
+                            if (mOsw == null) {
+                                createFile();
+                            }
+                            try {
+                                mOsw.append(mCan0Msg.toString() + "\n");
+                            } catch (Exception e) {
+                                Log.e(TAG, "cannot append to file");
+                            }
                         }
-                        try {
-                            mOsw.append(mMsg.toString() + "\n");
-                        } catch (Exception e) {
-                            Log.e(TAG, "cannot append to file");
+                        if (mCan1Socket.select(1) == 0) {
+                            mCan1Msg = mCan1Socket.recvMsg();
+                            if (mOsw == null) {
+                                createFile();
+                            }
+                            try {
+                                mOsw.append(mCan1Msg.toString() + "\n");
+                            } catch (Exception e) {
+                                Log.e(TAG, "cannot append to file");
+                            }
+                        } else {
+                            msgHandler.sendEmptyMessage(0);
                         }
-                    } else {
-                        msgHandler.sendEmptyMessage(0);
                     }
                 } catch (IOException e) {
                     Log.e(TAG, "cannot select on socket");
@@ -188,6 +225,7 @@ public class CandroidLogService extends Service {
             if (recvThread != null) {
                 recvThread.interrupt();
             }
+            SystemClock.sleep(1000);
             try {
                 if (mOsw != null) {
                     mOsw.close();

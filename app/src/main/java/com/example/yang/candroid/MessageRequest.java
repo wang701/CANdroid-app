@@ -96,8 +96,8 @@ public class MessageRequest extends JsonRequest<NetworkResponse> {
 /*					if (mMsgBuffer == null) {
 					mMsgBuffer = new MsgAdapter(1000 * 60 * 60 * 24);
 				}
-				if (mMsg != null) {
-					mMsgBuffer.add(mMsg.toString());
+				if (mCan0Msg != null) {
+					mMsgBuffer.add(mCan0Msg.toString());
 				}
 */
 			}

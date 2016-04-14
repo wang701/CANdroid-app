@@ -91,16 +91,16 @@ public class FilterDialogFragment extends DialogFragment {
 			return -1;
 		}
 
-        mSrcNameVal = name.isEmpty() ? -1 : Integer.parseLong(name);
+        mSrcNameVal = name.isEmpty() ? -1 : Long.parseLong(name);
         mSrcAddrVal = addr.isEmpty() ? -1 : Integer.parseInt(addr);
         mPgnVal = pgn.isEmpty() ? -1 : Integer.parseInt(pgn);
 
-        if (addrInt >= 255) {
+        if (mSrcAddrVal >= 255) {
             Toast.makeText(getActivity(), "Please input Source Adress range from 0 - 254",
                     Toast.LENGTH_SHORT).show();
             return -1;
         }
-        if (pgnInt > 262143) {
+        if (mPgnVal > 262143) {
             Toast.makeText(getActivity(), "Please input PGN range from 0 - 262143",
                     Toast.LENGTH_SHORT).show();
             return -1;
