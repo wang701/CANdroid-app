@@ -11,6 +11,8 @@ import android.os.Message;
 import android.os.SystemClock;
 import android.util.Log;
 import android.support.v4.app.NotificationCompat.Builder;
+import android.widget.Toast;
+import android.widget.ToggleButton;
 
 import java.io.IOException;
 import java.io.FileOutputStream;
@@ -214,7 +216,7 @@ public class CandroidService extends Service {
 			if (recvThread != null) {
 				recvThread.interrupt();
 			}
-            SystemClock.sleep(100);
+            SystemClock.sleep(1000);
             try {
 				if (mOsw != null) {
 					mOsw.close();

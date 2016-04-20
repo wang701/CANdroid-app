@@ -255,6 +255,14 @@ public class MainActivity extends Activity {
 	/* callback for starting the logger */
 	public void onStreamGo() {
 //		mQueue.add(new ConfigGetRequest());
+        try {
+            Process p = Runtime.getRuntime().exec("canup");
+        } catch (IOException e) {
+            Toast.makeText(this, "canup failed", Toast.LENGTH_SHORT).show();
+            ToggleButton b = (ToggleButton) findViewById(R.id.streamToggle);
+            b.setChecked(false);
+            return;
+        }
 		setupCanSocket();
 		startTask();
 		Log.d(TAG, "isServiceRunning: " +
@@ -318,7 +326,7 @@ public class MainActivity extends Activity {
 	private void stopTask() {
 		Log.d(TAG, "in stopTask(), cancel AsyncTask");
 		mMsgLoggerTask.cancel(true);
-		SystemClock.sleep(100);
+		SystemClock.sleep(1000);
 		mMsgLoggerTask = null;
 	}
 
