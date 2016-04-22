@@ -49,6 +49,9 @@ public class MainActivity extends Activity {
     private ListView mMsgList;
     private ListView mFilterList;
 
+	private BroadcastReceiver mLogServiceReceiver;
+	private BroadcastReceiver mDetachReceiver;
+
     private boolean mIsCandroidLogServiceRunning;
     private boolean mSaveFiltered = false;
     private boolean mSaveToCloud = false;
@@ -74,7 +77,7 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
 		if (!isBothUsbCanAdapterConnected()) {
-			Toast toast = Toast.makeText(this, "USB2CAN adapter not properly attached. App exits",
+			Toast toast = Toast.makeText(this, "USB2CAN adapter not properly attached! App exits.",
 				Toast.LENGTH_LONG);
 			toast.setGravity(Gravity.CENTER, 0, 0);
 			toast.show();
@@ -89,8 +92,6 @@ public class MainActivity extends Activity {
     protected void onResume() {
 
 		super.onResume();
-        registerReceiver(logServiceRecv, new IntentFilter(CandroidLogService.BROADCAST_ACTION));
-//		registerReceiver(cloudServiceRecv, new IntentFilter(CandroidCloudService.BROADCAST_ACTION));
     }
 
     @Override
@@ -122,6 +123,15 @@ public class MainActivity extends Activity {
             closeCanSocket();
             Log.d(TAG, "socket closed, task stopped");
         }
+
+		if (mDetachReceiver != null) {
+			unregisterReceiver(mDetachReceiver);
+		}
+
+		if (mLogServiceReceiver != null) {
+			unregisterReceiver(mLogServiceReceiver);
+		}
+
         super.onDestroy();
     }
 
@@ -129,8 +139,6 @@ public class MainActivity extends Activity {
     protected void onPause() {
 
         Log.d(TAG, "in onPause()");
-        unregisterReceiver(logServiceRecv);
-//      unregisterReceiver(cloudServiceRecv);
         super.onPause();
     }
 
@@ -155,6 +163,7 @@ public class MainActivity extends Activity {
             closeCanSocket();
             Log.d(TAG, "socket closed, task stopped");
         }
+
         super.onStop();
     }
 
@@ -226,15 +235,6 @@ public class MainActivity extends Activity {
         }
     }
 
-    public BroadcastReceiver logServiceRecv = new BroadcastReceiver() {
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Log.d(TAG, "in Logger OnReceive()");
-            renderFilterOptions(intent);
-        }
-    };
-
 /*
 	public BroadcastReceiver cloudServiceRecv = new BroadcastReceiver() {
 
@@ -295,6 +295,33 @@ public class MainActivity extends Activity {
 
 		mFilterDialog = new FilterDialogFragment();
 		mWarningDialog = new WarningDialogFragment();
+
+		IntentFilter detachFilter = new IntentFilter();
+		detachFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
+		IntentFilter logServiceFilter = new IntentFilter();
+		logServiceFilter.addAction(CandroidLogService.BROADCAST_ACTION);
+
+		mDetachReceiver = new BroadcastReceiver() {
+			@Override
+			public void onReceive(Context context, Intent intent) {
+				if(intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
+					Toast.makeText(MainActivity.this, "USB2CAN adapters detached! Logging stops.",
+						Toast.LENGTH_LONG).show();
+					onStop();
+				}
+			}
+		};
+
+		mLogServiceReceiver = new BroadcastReceiver() {
+
+			@Override
+			public void onReceive(Context context, Intent intent) {
+				renderFilterOptions(intent);
+			}
+		};
+
+		registerReceiver(mDetachReceiver, detachFilter);
+		registerReceiver(mLogServiceReceiver, logServiceFilter);
     }
 
     /* callback for adding new filters */
@@ -306,15 +333,6 @@ public class MainActivity extends Activity {
 
     /* callback for starting the logger */
     public void onStartLogging() {
-        /*
-        if (!mIsUsbConnected) {
-			Toast toast = Toast.makeText(this, "No USB2CAN adapter attached. App exits ...",
-				Toast.LENGTH_LONG);
-			toast.setGravity(Gravity.CENTER, 0, 0);
-			toast.show();
-
-			this.finishAffinity();
-		}*/
 
 		setupCanSocket();
 		startTask();
