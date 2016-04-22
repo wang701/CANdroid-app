@@ -9,12 +9,15 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -28,6 +31,8 @@ import org.isoblue.can.CanSocketJ1939.J1939Message;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 
 public class MainActivity extends Activity {
 
@@ -47,6 +52,7 @@ public class MainActivity extends Activity {
     private boolean mIsCandroidLogServiceRunning;
     private boolean mSaveFiltered = false;
     private boolean mSaveToCloud = false;
+	private boolean mIsUsbConnected = false;
 
     public static Filter mFilter;
     public static MsgAdapter mFilterItems;
@@ -54,11 +60,11 @@ public class MainActivity extends Activity {
 
     private static final String CAN_INTERFACE = "can0";
     private static final String TAG = "CandroidActivity";
-    private static final String msgFilter = "Adding new filter(s) will stop " +
-            "current logging, do you wish to continue?";
+    private static final String msgFilter = "Adding new filter(s) will stop current logging, do" +
+		"you wish to continue?";
     private static final String msgStop = "Stop logging and Candroid Service?";
-    private static final String msgLogOpt = "Change log options will stop " +
-            "current logging, do you wish to continue?";
+    private static final String msgLogOpt = "Change log options will stop current logging, do" +
+		"you wish to continue?";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,22 +72,17 @@ public class MainActivity extends Activity {
         Log.d(TAG, "in onCreate()");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+		if (!isBothUsbCanAdapterConnected()) {
+			Toast toast = Toast.makeText(this, "USB2CAN adapter not properly attached. App exits",
+				Toast.LENGTH_LONG);
+			toast.setGravity(Gravity.CENTER, 0, 0);
+			toast.show();
+
+			this.finishAffinity();
+		}
+
         initCandroid();
-    }
-
-    public void initCandroid() {
-
-        Log.d(TAG, "initializing parameters in initCandroid()");
-        mLog = new MsgAdapter(this, 100);
-        mFilterItems = new MsgAdapter(this, 20);
-
-        mMsgList = (ListView) findViewById(R.id.msglist);
-        mFilterList = (ListView) findViewById(R.id.filterlist);
-        mMsgList.setAdapter(mLog);
-        mFilterList.setAdapter(mFilterItems);
-
-        mFilterDialog = new FilterDialogFragment();
-        mWarningDialog = new WarningDialogFragment();
     }
 
     @Override
@@ -89,7 +90,7 @@ public class MainActivity extends Activity {
 
 		super.onResume();
         registerReceiver(logServiceRecv, new IntentFilter(CandroidLogService.BROADCAST_ACTION));
-        registerReceiver(cloudServiceRecv, new IntentFilter(CandroidCloudService.BROADCAST_ACTION));
+//		registerReceiver(cloudServiceRecv, new IntentFilter(CandroidCloudService.BROADCAST_ACTION));
     }
 
     @Override
@@ -129,7 +130,7 @@ public class MainActivity extends Activity {
 
         Log.d(TAG, "in onPause()");
         unregisterReceiver(logServiceRecv);
-        unregisterReceiver(cloudServiceRecv);
+//      unregisterReceiver(cloudServiceRecv);
         super.onPause();
     }
 
@@ -162,7 +163,7 @@ public class MainActivity extends Activity {
 
         super.onPrepareOptionsMenu(menu);
         menu.findItem(R.id.save_option).setChecked(mSaveFiltered);
-		menu.findItem(R.id.upload_to_cloud).setChecked(mSaveToCloud);
+//		menu.findItem(R.id.upload_to_cloud).setChecked(mSaveToCloud);
         return true;
     }
 
@@ -210,7 +211,7 @@ public class MainActivity extends Activity {
                     Toast.makeText(this, "No file manager app found", Toast.LENGTH_LONG).show();
                 }
             case R.id.upload_to_cloud:
-                if (item.isChecked()) {
+/*              if (item.isChecked()) {
 					stopCloudService();
 					mSaveToCloud = false;
                     item.setChecked(false);
@@ -219,6 +220,7 @@ public class MainActivity extends Activity {
 					mSaveToCloud = true;
 					startOAuthFlow();
                 }
+*/
             default:
                 return super.onOptionsItemSelected(item);
         }
@@ -233,7 +235,8 @@ public class MainActivity extends Activity {
         }
     };
 
-    public BroadcastReceiver cloudServiceRecv = new BroadcastReceiver() {
+/*
+	public BroadcastReceiver cloudServiceRecv = new BroadcastReceiver() {
 
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -241,7 +244,7 @@ public class MainActivity extends Activity {
             renderCloudOptions(intent);
         }
     };
-
+*/
     public void renderFilterOptions(Intent intent) {
 
         Bundle b = intent.getBundleExtra("logServiceBundle");
@@ -257,14 +260,13 @@ public class MainActivity extends Activity {
             mFilterItems.addArray(filterStr);
         }
     }
-
+/*
     public void renderCloudOptions(Intent intent) {
 
         Bundle b = intent.getBundleExtra("cloudServiceBundle");
         mSaveFiltered = b.getBoolean("save_to_cloud");
     }
-
-
+*/
     /* callback for streamToggle */
     public void toggleListener(View view) throws IOException {
 
@@ -280,6 +282,21 @@ public class MainActivity extends Activity {
         }
     }
 
+    public void initCandroid() {
+
+		Log.d(TAG, "initializing parameters in initCandroid()");
+		mLog = new MsgAdapter(this, 100);
+		mFilterItems = new MsgAdapter(this, 20);
+
+		mMsgList = (ListView) findViewById(R.id.msglist);
+		mFilterList = (ListView) findViewById(R.id.filterlist);
+		mMsgList.setAdapter(mLog);
+		mFilterList.setAdapter(mFilterItems);
+
+		mFilterDialog = new FilterDialogFragment();
+		mWarningDialog = new WarningDialogFragment();
+    }
+
     /* callback for adding new filters */
     public void onAddNewFilter() {
 
@@ -289,11 +306,20 @@ public class MainActivity extends Activity {
 
     /* callback for starting the logger */
     public void onStartLogging() {
+        /*
+        if (!mIsUsbConnected) {
+			Toast toast = Toast.makeText(this, "No USB2CAN adapter attached. App exits ...",
+				Toast.LENGTH_LONG);
+			toast.setGravity(Gravity.CENTER, 0, 0);
+			toast.show();
 
-        setupCanSocket();
-        startTask();
-        Log.d(TAG, "isLogServiceRunning: " + isServiceRunning(CandroidLogService.class));
-        startLogService();
+			this.finishAffinity();
+		}*/
+
+		setupCanSocket();
+		startTask();
+		Log.d(TAG, "isLogServiceRunning: " + isServiceRunning(CandroidLogService.class));
+		startLogService();
     }
 
     /* callback for stop everything */
@@ -305,6 +331,30 @@ public class MainActivity extends Activity {
         ToggleButton b = (ToggleButton) findViewById(R.id.streamToggle);
         b.setChecked(false);
     }
+
+	private boolean isBothUsbCanAdapterConnected() {
+        UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        HashMap<String, UsbDevice> deviceList = usbManager.getDeviceList();
+        Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
+
+		int usbCanAdapterCount = 0;
+
+        while (deviceIterator.hasNext()) {
+            UsbDevice usbDevice = deviceIterator.next();
+            Log.i(TAG, "Model: " + usbDevice.getProductId());
+            Log.i(TAG, "Id: " + usbDevice.getVendorId());
+			if (usbDevice.getProductId() == 4660 && usbDevice.getVendorId() == 1155) {
+				usbCanAdapterCount++;
+			}
+        }
+
+		if (usbCanAdapterCount == 2) {
+            Toast.makeText(this, "Both USB2CAN adapters connected!", Toast.LENGTH_LONG).show();
+			return true;
+		} else {
+			return false;
+		}
+	}
 
     private boolean isServiceRunning(Class<?> serviceClass) {
 
@@ -376,7 +426,7 @@ public class MainActivity extends Activity {
 
         stopService(intent);
     }
-
+/*
     private void startCloudService(OADAConfiguration config, OADAAccessToken token) {
 
         Intent intent = new Intent(CandroidCloudService.FOREGROUND_START);
@@ -397,7 +447,7 @@ public class MainActivity extends Activity {
 
         stopService(intent);
     }
-
+*/
     public void startOAuthFlow() {
 
         mOAuthFragment = new OADAWebViewFragment();
@@ -410,18 +460,18 @@ public class MainActivity extends Activity {
                 ().getApplicationContext();
 
         mOAuthFragment.getAccessToken("vip4.ecn.purdue.edu", context,
-			new OADAWebViewFragment.Listener<OADAAccessToken>() {
-				@Override
-				public void onResponse(OADAAccessToken response) {
-					startCloudService(mOAuthFragment.getConfig(), mOAuthFragment.getToken());
-				}
-			},
-			new OADAWebViewFragment.Listener<OADAError>() {
-				@Override
-				public void onResponse(OADAError response) {
-					// Show error and suck it up
-				}
-			});
+                new OADAWebViewFragment.Listener<OADAAccessToken>() {
+                    @Override
+                    public void onResponse(OADAAccessToken response) {
+//					startCloudService(mOAuthFragment.getConfig(), mOAuthFragment.getToken());
+                    }
+                },
+                new OADAWebViewFragment.Listener<OADAError>() {
+                    @Override
+                    public void onResponse(OADAError response) {
+                        // Show error and suck it up
+                    }
+                });
 
 
     }
