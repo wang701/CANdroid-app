@@ -180,6 +180,7 @@ public class CandroidLogService extends Service {
                     }
                 } catch (IOException e) {
                     Log.e(TAG, "cannot select on socket");
+										recvThread.interrupt();
                 }
             }
         }

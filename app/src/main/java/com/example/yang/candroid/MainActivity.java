@@ -49,13 +49,13 @@ public class MainActivity extends Activity {
     private ListView mMsgList;
     private ListView mFilterList;
 
-	private BroadcastReceiver mLogServiceReceiver;
-	private BroadcastReceiver mDetachReceiver;
+		private BroadcastReceiver mLogServiceReceiver;
+		private BroadcastReceiver mDetachReceiver;
+		private BroadcastReceiver mAttachReceiver;
 
     private boolean mIsCandroidLogServiceRunning;
     private boolean mSaveFiltered = false;
     private boolean mSaveToCloud = false;
-	private boolean mIsUsbConnected = false;
 
     public static Filter mFilter;
     public static MsgAdapter mFilterItems;
@@ -64,10 +64,10 @@ public class MainActivity extends Activity {
     private static final String CAN_INTERFACE = "can0";
     private static final String TAG = "CandroidActivity";
     private static final String msgFilter = "Adding new filter(s) will stop current logging, do" +
-		"you wish to continue?";
+			"you wish to continue?";
     private static final String msgStop = "Stop logging and Candroid Service?";
     private static final String msgLogOpt = "Change log options will stop current logging, do" +
-		"you wish to continue?";
+			"you wish to continue?";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,15 +75,6 @@ public class MainActivity extends Activity {
         Log.d(TAG, "in onCreate()");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-		if (!isBothUsbCanAdapterConnected()) {
-			Toast toast = Toast.makeText(this, "USB2CAN adapter not properly attached! App exits.",
-				Toast.LENGTH_LONG);
-			toast.setGravity(Gravity.CENTER, 0, 0);
-			toast.show();
-
-			this.finishAffinity();
-		}
 
         initCandroid();
     }
@@ -132,6 +123,10 @@ public class MainActivity extends Activity {
 			unregisterReceiver(mLogServiceReceiver);
 		}
 
+		if (mAttachReceiver != null) {
+			unregisterReceiver(mAttachReceiver);
+		}
+
         super.onDestroy();
     }
 
@@ -151,6 +146,7 @@ public class MainActivity extends Activity {
             b.setChecked(true);
             onStartLogging();
         }
+
         super.onStart();
     }
 
@@ -271,6 +267,14 @@ public class MainActivity extends Activity {
     public void toggleListener(View view) throws IOException {
 
         ToggleButton b = (ToggleButton) view;
+
+		if (!isBothUsbCanAdapterConnected()) {
+			Toast.makeText(MainActivity.this,
+					"Please properly attach CAN adapters before start logging.",
+					Toast.LENGTH_SHORT).show();
+			b.setChecked(false);
+		}
+
         if (b.isChecked()) {
             onStartLogging();
         } else {
@@ -284,44 +288,62 @@ public class MainActivity extends Activity {
 
     public void initCandroid() {
 
-		Log.d(TAG, "initializing parameters in initCandroid()");
-		mLog = new MsgAdapter(this, 100);
-		mFilterItems = new MsgAdapter(this, 20);
+			Log.d(TAG, "initializing parameters in initCandroid()");
+			mLog = new MsgAdapter(this, 100);
+			mFilterItems = new MsgAdapter(this, 20);
 
-		mMsgList = (ListView) findViewById(R.id.msglist);
-		mFilterList = (ListView) findViewById(R.id.filterlist);
-		mMsgList.setAdapter(mLog);
-		mFilterList.setAdapter(mFilterItems);
+			mMsgList = (ListView) findViewById(R.id.msglist);
+			mFilterList = (ListView) findViewById(R.id.filterlist);
+			mMsgList.setAdapter(mLog);
+			mFilterList.setAdapter(mFilterItems);
 
-		mFilterDialog = new FilterDialogFragment();
-		mWarningDialog = new WarningDialogFragment();
+			mFilterDialog = new FilterDialogFragment();
+			mWarningDialog = new WarningDialogFragment();
 
-		IntentFilter detachFilter = new IntentFilter();
-		detachFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
-		IntentFilter logServiceFilter = new IntentFilter();
-		logServiceFilter.addAction(CandroidLogService.BROADCAST_ACTION);
+			IntentFilter detachFilter = new IntentFilter();
+			detachFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
+			IntentFilter attachFilter = new IntentFilter();
+			attachFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
+			IntentFilter logServiceFilter = new IntentFilter();
+			logServiceFilter.addAction(CandroidLogService.BROADCAST_ACTION);
 
-		mDetachReceiver = new BroadcastReceiver() {
-			@Override
-			public void onReceive(Context context, Intent intent) {
-				if(intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
-					Toast.makeText(MainActivity.this, "USB2CAN adapters detached! Logging stops.",
-						Toast.LENGTH_LONG).show();
-					onStop();
-				}
-			}
+			mAttachReceiver = new BroadcastReceiver() {
+					@Override
+					public void onReceive(Context context, Intent intent) {
+						if (intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_ATTACHED)) {
+								Toast.makeText(MainActivity.this, "CAN adapters attached.",
+										Toast.LENGTH_SHORT).show();
+						}
+					}
+			};
+
+			mDetachReceiver = new BroadcastReceiver() {
+					@Override
+					public void onReceive(Context context, Intent intent) {
+						if (intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
+								Toast.makeText(MainActivity.this, "CAN adapter(s) detached.",
+										Toast.LENGTH_SHORT).show();
+
+								ToggleButton b = (ToggleButton) findViewById(R.id.streamToggle);
+								b.setChecked(false);
+
+								stopLogService();
+
+		//					closeCanInterface();
+						}
+					}
 		};
 
-		mLogServiceReceiver = new BroadcastReceiver() {
+			mLogServiceReceiver = new BroadcastReceiver() {
+					@Override
+					public void onReceive(Context context, Intent intent) {
+						renderFilterOptions(intent);
+					}
+			};
 
-			@Override
-			public void onReceive(Context context, Intent intent) {
-				renderFilterOptions(intent);
-			}
-		};
-
-		registerReceiver(mDetachReceiver, detachFilter);
-		registerReceiver(mLogServiceReceiver, logServiceFilter);
+			registerReceiver(mAttachReceiver, attachFilter);
+			registerReceiver(mDetachReceiver, detachFilter);
+			registerReceiver(mLogServiceReceiver, logServiceFilter);
     }
 
     /* callback for adding new filters */
@@ -334,45 +356,47 @@ public class MainActivity extends Activity {
     /* callback for starting the logger */
     public void onStartLogging() {
 
-		setupCanSocket();
-		startTask();
-		Log.d(TAG, "isLogServiceRunning: " + isServiceRunning(CandroidLogService.class));
-		startLogService();
+				setupCanInterface();
+				setupCanSocket();
+				startTask();
+				Log.d(TAG, "isLogServiceRunning: " + isServiceRunning(CandroidLogService.class));
+				startLogService();
     }
 
     /* callback for stop everything */
     public void onStopLogging() {
 
         stopTask();
-        closeCanSocket();
         stopLogService();
+        closeCanSocket();
+//		closeCanInterface();
         ToggleButton b = (ToggleButton) findViewById(R.id.streamToggle);
         b.setChecked(false);
     }
 
-	private boolean isBothUsbCanAdapterConnected() {
-        UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-        HashMap<String, UsbDevice> deviceList = usbManager.getDeviceList();
-        Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
+		private boolean isBothUsbCanAdapterConnected() {
+					UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+					HashMap<String, UsbDevice> deviceList = usbManager.getDeviceList();
+					Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
 
-		int usbCanAdapterCount = 0;
+					int usbCanAdapterCount = 0;
 
-        while (deviceIterator.hasNext()) {
-            UsbDevice usbDevice = deviceIterator.next();
-            Log.i(TAG, "Model: " + usbDevice.getProductId());
-            Log.i(TAG, "Id: " + usbDevice.getVendorId());
-			if (usbDevice.getProductId() == 4660 && usbDevice.getVendorId() == 1155) {
-				usbCanAdapterCount++;
+					while (deviceIterator.hasNext()) {
+							UsbDevice usbDevice = deviceIterator.next();
+							Log.i(TAG, "Model: " + usbDevice.getProductId());
+							Log.i(TAG, "Id: " + usbDevice.getVendorId());
+				if (usbDevice.getProductId() == 4660 && usbDevice.getVendorId() == 1155) {
+					usbCanAdapterCount++;
+				}
+					}
+
+			if (usbCanAdapterCount == 2) {
+				Toast.makeText(this, "Both USB2CAN adapters connected!", Toast.LENGTH_SHORT).show();
+				return true;
+			} else {
+				return false;
 			}
-        }
-
-		if (usbCanAdapterCount == 2) {
-            Toast.makeText(this, "Both USB2CAN adapters connected!", Toast.LENGTH_LONG).show();
-			return true;
-		} else {
-			return false;
 		}
-	}
 
     private boolean isServiceRunning(Class<?> serviceClass) {
 
@@ -386,6 +410,22 @@ public class MainActivity extends Activity {
 
         return false;
     }
+
+		private void setupCanInterface() {
+			try {
+				Process p = Runtime.getRuntime().exec("su -c canup");
+			} catch (IOException e) {
+				Log.e(TAG, "setupCanInterface() not successful");
+			}
+		}
+
+		private void closeCanInterface() {
+			try {
+				Process p = Runtime.getRuntime().exec("su -c candown");
+			} catch (IOException e) {
+				Log.e(TAG, "closeCanInterface() not successful");
+			}
+		}
 
     private void setupCanSocket() {
 
@@ -432,7 +472,7 @@ public class MainActivity extends Activity {
         intent.putExtra("save_option", mSaveFiltered);
         intent.putExtra("filter_list", mFilters);
 
-		intent.setClass(MainActivity.this, CandroidLogService.class);
+				intent.setClass(MainActivity.this, CandroidLogService.class);
 
         startService(intent);
     }
@@ -510,8 +550,13 @@ public class MainActivity extends Activity {
                         }
                     }
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
+            } catch (IOException e) {
+                Log.e(TAG, "cannot select on socket");
+								if (mMsgLoggerTask != null && mSocket != null) {
+									stopTask();
+									closeCanSocket();
+									Log.d(TAG, "socket closed, task stopped");
+								}
             }
 
             return null;
